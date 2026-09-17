@@ -1,0 +1,6 @@
+{
+  "name": "Cadre Photo Numérique",
+  "description": "Cadre photo numérique interactif avec support de sources locales et partages SMB/NAS, transitions configurables et mode diaporama plein écran.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
