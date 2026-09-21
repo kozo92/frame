@@ -1,11 +1,9 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import SMB2 from '@marsaud/smb2';
 import { createServer as createViteServer } from 'vite';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const appDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
 
 const app = express();
 const PORT = 3000;
@@ -297,6 +295,46 @@ app.get('/api/smb/file', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// -------------------------------------------------------------
+// Legacy Internet Explorer 10 & Microsoft Surface RT Detection
+// -------------------------------------------------------------
+function isLegacyIEorSurfaceRT(userAgent: string): boolean {
+  if (!userAgent) return false;
+  // Match MSIE 9/10/11, Trident/6.0 (IE10), Trident/5.0 (IE9), Windows NT 6.2; ARM (Surface RT)
+  return /MSIE (10\.0|9\.0|8\.0)|Trident\/(6\.0|5\.0)|ARM.*Trident|Windows NT 6\.2; ARM/i.test(userAgent);
+}
+
+function sendIE10File(res: express.Response) {
+  const publicPath = path.join(process.cwd(), 'public', 'ie10.html');
+  const distPath = path.join(process.cwd(), 'dist', 'ie10.html');
+  if (process.env.NODE_ENV === 'production') {
+    res.sendFile(distPath, (err) => {
+      if (err) res.sendFile(publicPath);
+    });
+  } else {
+    res.sendFile(publicPath);
+  }
+}
+
+app.get(['/ie10', '/legacy', '/surface-rt'], (req, res) => {
+  sendIE10File(res);
+});
+
+// Explicit route to force modern standard version
+app.get('/modern', (req, res, next) => {
+  req.url = '/?mode=modern';
+  next();
+});
+
+// Auto-serve legacy page for IE10 / Surface RT user agents when accessing root
+app.use((req, res, next) => {
+  const ua = req.headers['user-agent'] || '';
+  if (req.path === '/' && req.query.mode !== 'modern' && isLegacyIEorSurfaceRT(ua)) {
+    return sendIE10File(res);
+  }
+  next();
 });
 
 // -------------------------------------------------------------

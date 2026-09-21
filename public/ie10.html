@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<!--[if IE 9]><html lang="fr" class="ie ie9"><![endif]-->
+<!--[if IE 10]><html lang="fr" class="ie ie10"><![endif]-->
+<!--[if !IE]><!--><html lang="fr"><!--<![endif]-->
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Cadre Photo Numérique - Compatible Surface RT & Internet Explorer 10</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Cadre photo numérique optimisé pour Microsoft Surface Windows RT et Internet Explorer 10. Support disque local, partage SMB / NAS et transitions personnalisables." />
+  
+  <!-- Optimisations Microsoft Windows RT / Surface Metro -->
+  <meta name="application-name" content="Cadre Photo" />
+  <meta name="msapplication-TileColor" content="#0c0a09" />
+  <meta name="msapplication-tap-highlight" content="no" />
+
+  <style type="text/css">
+    /* Reset & Base compatible IE10 / Surface RT */
+    * {
+      -webkit-box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -ms-touch-action: manipulation;
+      touch-action: manipulation;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0c0a09;
+      color: #f5f5f4;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      user-select: none;
+      -ms-user-select: none;
+      -webkit-user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Container plein écran */
+    #app-viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+    }
+
+    /* Fond d'ambiance flouté (pour le mode contain) */
+    #ambient-background {
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 120%;
+      height: 120%;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      opacity: 0.35;
+      filter: blur(25px);
+      -webkit-filter: blur(25px);
+      -ms-filter: "progid:DXImageTransform.Microsoft.Blur(PixelRadius='25')";
+      -ms-transition: background-image 1s ease-in-out;
+      transition: background-image 1s ease-in-out;
+      z-index: 1;
+      display: block;
+    }
+
+    /* Cadre physique autour de l'image */
+    #frame-border-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      -ms-transition: all 0.4s ease;
+      transition: all 0.4s ease;
+    }
+
+    /* Styles de cadres */
+    .frame-style-borderless {
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .frame-style-passe-partout {
+      padding: 30px !important;
+      background: #f5f5f4 !important;
+      border: 2px solid #d6d3d1 !important;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.85) !important;
+    }
+    .frame-style-wood-oak {
+      padding: 26px !important;
+      background: #b28254 !important;
+      border: 6px solid #6b431e !important;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.9) !important;
+    }
+    .frame-style-wood-walnut {
+      padding: 26px !important;
+      background: #3b2416 !important;
+      border: 6px solid #1c0f07 !important;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.95) !important;
+    }
+    .frame-style-aluminum-black {
+      padding: 18px !important;
+      background: #1c1917 !important;
+      border: 3px solid #44403c !important;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.9) !important;
+    }
+
+    /* Zone d'affichage des photos */
+    #photo-stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+    }
+
+    /* Les deux calques de transition (Layer A et Layer B) */
+    .slide-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      opacity: 0;
+      z-index: 5;
+      -ms-transform: translate3d(0,0,0);
+      transform: translate3d(0,0,0);
+      -ms-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+
+    .slide-layer.fit-contain {
+      background-size: contain !important;
+    }
+    .slide-layer.fit-cover {
+      background-size: cover !important;
+    }
+
+    .slide-layer.active {
+      opacity: 1;
+      z-index: 10;
+    }
+
+    /* Transitions CSS3 compatibles IE10 */
+    /* 1. Fondu (Fade) */
+    .transition-fade {
+      -ms-transition: opacity 1s ease-in-out;
+      transition: opacity 1s ease-in-out;
+    }
+
+    /* 2. Glissement horizontal (Slide H) */
+    .transition-slide-h {
+      -ms-transition: -ms-transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
+      transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
+    }
+    .slide-enter-right {
+      -ms-transform: translateX(100%);
+      transform: translateX(100%);
+      opacity: 0.5;
+    }
+    .slide-exit-left {
+      -ms-transform: translateX(-100%);
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    .slide-enter-left {
+      -ms-transform: translateX(-100%);
+      transform: translateX(-100%);
+      opacity: 0.5;
+    }
+    .slide-exit-right {
+      -ms-transform: translateX(100%);
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    /* 3. Glissement vertical (Slide V) */
+    .transition-slide-v {
+      -ms-transition: -ms-transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
+      transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
+    }
+    .slide-enter-bottom {
+      -ms-transform: translateY(100%);
+      transform: translateY(100%);
+      opacity: 0.5;
+    }
+    .slide-exit-top {
+      -ms-transform: translateY(-100%);
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    /* 4. Zoom */
+    .transition-zoom {
+      -ms-transition: -ms-transform 1s ease-out, opacity 1s ease;
+      transition: transform 1s ease-out, opacity 1s ease;
+    }
+    .zoom-enter {
+      -ms-transform: scale(1.08);
+      transform: scale(1.08);
+      opacity: 0;
+    }
+    .zoom-exit {
+      opacity: 0;
+    }
+
+    /* 5. Flip 3D */
+    .transition-flip {
+      -ms-transition: -ms-transform 0.9s ease-in-out, opacity 0.9s ease;
+      transition: transform 0.9s ease-in-out, opacity 0.9s ease;
+    }
+    .flip-enter {
+      -ms-transform: perspective(1000px) rotateY(90deg);
+      transform: perspective(1000px) rotateY(90deg);
+      opacity: 0;
+    }
+    .flip-exit {
+      opacity: 0;
+    }
+
+    /* 6. Effet Ken Burns continu */
+    @-ms-keyframes kenburns-drift {
+      0% {
+        -ms-transform: scale(1) translate(0, 0);
+      }
+      50% {
+        -ms-transform: scale(1.07) translate(12px, -8px);
+      }
+      100% {
+        -ms-transform: scale(1.04) translate(-10px, 6px);
+      }
+    }
+    @keyframes kenburns-drift {
+      0% {
+        transform: scale(1) translate(0, 0);
+      }
+      50% {
+        transform: scale(1.07) translate(12px, -8px);
+      }
+      100% {
+        transform: scale(1.04) translate(-10px, 6px);
+      }
+    }
+    .kenburns-active {
+      -ms-animation: kenburns-drift 18s ease-in-out infinite alternate;
+      animation: kenburns-drift 18s ease-in-out infinite alternate;
+    }
+
+    /* Horloge et date intégrées */
+    #clock-overlay {
+      position: absolute;
+      z-index: 25;
+      pointer-events: none;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9);
+    }
+    #clock-time {
+      font-size: 42px;
+      font-weight: 300;
+      line-height: 1;
+      letter-spacing: -1px;
+      color: rgba(255,255,255,0.95);
+    }
+    #clock-date {
+      font-size: 14px;
+      margin-top: 4px;
+      color: rgba(255,255,255,0.8);
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+    .clock-pos-bottom-left { bottom: 24px; left: 24px; text-align: left; }
+    .clock-pos-bottom-right { bottom: 24px; right: 24px; text-align: right; }
+    .clock-pos-top-left { top: 24px; left: 24px; text-align: left; }
+    .clock-pos-top-right { top: 24px; right: 24px; text-align: right; }
+    .clock-pos-none { display: none !important; }
+
+    /* Titre de la photo */
+    #photo-caption {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 24;
+      pointer-events: none;
+      text-align: right;
+      max-width: 450px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    }
+    #photo-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #photo-path {
+      font-size: 11px;
+      color: rgba(255,255,255,0.65);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Barre supérieure d'état */
+    #top-bar {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      right: 16px;
+      z-index: 40;
+      -ms-transition: opacity 0.35s ease, -ms-transform 0.35s ease;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .top-bar-badge {
+      display: inline-block;
+      background: #1c1917;
+      background: rgba(28,25,23,0.85);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #e7e5e4;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .top-bar-right {
+      float: right;
+    }
+    .btn-badge {
+      background: #1c1917;
+      background: rgba(28,25,23,0.85);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e7e5e4;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      margin-left: 6px;
+    }
+    .btn-badge:hover, .btn-badge:active {
+      background: #292524;
+      border-color: #f59e0b;
+      color: #f59e0b;
+    }
+
+    /* Barre inférieure de commandes (Boutons tactiles pour Surface RT) */
+    #bottom-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      -ms-transform: translateX(-50%);
+      transform: translateX(-50%);
+      z-index: 40;
+      background: #1c1917;
+      background: rgba(28,25,23,0.88);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 6px 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      white-space: nowrap;
+      -ms-transition: opacity 0.35s ease, -ms-transform 0.35s ease;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .ctrl-btn {
+      display: inline-block;
+      vertical-align: middle;
+      background: transparent;
+      border: none;
+      color: #d6d3d1;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 14px;
+      margin: 0 2px;
+      border-radius: 8px;
+      cursor: pointer;
+      -ms-touch-action: manipulation;
+      touch-action: manipulation;
+    }
+    .ctrl-btn:hover, .ctrl-btn:active {
+      background: #292524;
+      color: #ffffff;
+    }
+    .ctrl-btn-primary {
+      background: #f59e0b !important;
+      color: #0c0a09 !important;
+      font-weight: bold;
+    }
+    .ctrl-btn-primary:hover, .ctrl-btn-primary:active {
+      background: #fbbf24 !important;
+    }
+    .ctrl-btn-active {
+      background: rgba(245,158,11,0.2) !important;
+      color: #f59e0b !important;
+      border: 1px solid rgba(245,158,11,0.5);
+    }
+    .ctrl-separator {
+      display: inline-block;
+      vertical-align: middle;
+      width: 1px;
+      height: 22px;
+      background: rgba(255,255,255,0.15);
+      margin: 0 4px;
+    }
+
+    /* Auto-hide classes */
+    .controls-hidden {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    /* Fenêtres modales compatibles IE10 */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 100;
+      overflow-y: auto;
+      text-align: center;
+      padding: 20px;
+    }
+    .modal-backdrop:before {
+      content: '';
+      display: inline-block;
+      height: 100%;
+      vertical-align: middle;
+      margin-right: -4px;
+    }
+    .modal-dialog {
+      display: inline-block;
+      vertical-align: middle;
+      text-align: left;
+      width: 100%;
+      max-width: 620px;
+      background: #1c1917;
+      border: 1px solid #44403c;
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+      color: #e7e5e4;
+      margin: 20px 0;
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #292524;
+      position: relative;
+    }
+    .modal-header h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #fafaf9;
+    }
+    .modal-header p {
+      font-size: 12px;
+      color: #a8a29e;
+      margin-top: 3px;
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      line-height: 1;
+      color: #a8a29e;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    .modal-close-btn:hover {
+      color: #ffffff;
+    }
+    .modal-tabs {
+      background: #0c0a09;
+      border-bottom: 1px solid #292524;
+      padding: 0 16px;
+    }
+    .modal-tab-btn {
+      display: inline-block;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #a8a29e;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .modal-tab-btn.active {
+      color: #f59e0b;
+      border-bottom-color: #f59e0b;
+      font-weight: 600;
+    }
+    .modal-body {
+      padding: 20px;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+    .modal-footer {
+      padding: 12px 20px;
+      background: #141210;
+      border-top: 1px solid #292524;
+      text-align: right;
+    }
+    .btn-default {
+      background: #292524;
+      color: #e7e5e4;
+      border: 1px solid #44403c;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-default:hover {
+      background: #44403c;
+    }
+    .btn-primary {
+      background: #f59e0b;
+      color: #0c0a09;
+      border: none;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      background: #fbbf24;
+    }
+
+    /* Formulaires dans la modale */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #d6d3d1;
+      margin-bottom: 5px;
+    }
+    .form-control {
+      width: 100%;
+      background: #0c0a09;
+      border: 1px solid #44403c;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #fafaf9;
+      font-size: 13px;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #f59e0b;
+    }
+    .form-row {
+      margin-left: -6px;
+      margin-right: -6px;
+    }
+    .form-col-6 {
+      float: left;
+      width: 50%;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    .clearfix:after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+
+    .alert-box {
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+    .alert-info {
+      background: #172554;
+      border: 1px solid #1e40af;
+      color: #bfdbfe;
+    }
+    .alert-success {
+      background: #064e3b;
+      border: 1px solid #047857;
+      color: #a7f3d0;
+    }
+    .alert-error {
+      background: #4c0519;
+      border: 1px solid #9f1239;
+      color: #fecdd3;
+    }
+
+    /* Grille de sélection des transitions */
+    .transition-grid {
+      margin-left: -5px;
+      margin-right: -5px;
+    }
+    .transition-card {
+      float: left;
+      width: 50%;
+      padding: 5px;
+    }
+    .transition-card-inner {
+      background: #0c0a09;
+      border: 1px solid #292524;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      -ms-transition: border-color 0.2s;
+      transition: border-color 0.2s;
+    }
+    .transition-card-inner:hover {
+      border-color: #57534e;
+    }
+    .transition-card-inner.selected {
+      border-color: #f59e0b;
+      background: rgba(245,158,11,0.08);
+    }
+    .transition-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fafaf9;
+    }
+    .transition-card-desc {
+      font-size: 11px;
+      color: #a8a29e;
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    /* Surface RT Note Banner */
+    #surface-rt-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 12px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.4);
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-viewport">
+    <!-- Fond flou ambiance pour le mode contain -->
+    <div id="ambient-background"></div>
+
+    <!-- Cadre physique -->
+    <div id="frame-border-wrapper" class="frame-style-borderless">
+      <!-- Zone d'affichage des photos -->
+      <div id="photo-stage">
+        <!-- Calque A -->
+        <div id="layer-a" class="slide-layer active fit-cover transition-fade"></div>
+        <!-- Calque B -->
+        <div id="layer-b" class="slide-layer fit-cover transition-fade"></div>
+
+        <!-- Horloge et date -->
+        <div id="clock-overlay" class="clock-pos-bottom-left">
+          <div id="clock-time">00:00</div>
+          <div id="clock-date">Chargement...</div>
+        </div>
+
+        <!-- Titre et source de la photo -->
+        <div id="photo-caption">
+          <div id="photo-title">Photo</div>
+          <div id="photo-path">Source</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barre supérieure -->
+    <div id="top-bar">
+      <div class="top-bar-badge">
+        <span class="status-dot"></span>
+        <span id="badge-source-label">Galerie Démonstration</span>
+        <span style="opacity:0.4; margin: 0 4px;">•</span>
+        <span id="badge-photo-index">1 / 8</span>
+      </div>
+
+      <div class="top-bar-right">
+        <button id="btn-toggle-fullscreen" class="btn-badge" title="Basculer en plein écran">
+          ⛶ Plein écran
+        </button>
+        <a href="/?mode=modern" target="_self" class="btn-badge" style="color: #94a3b8;" title="Version moderne pour navigateurs récents">
+          Version Standard ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Barre inférieure de commandes (Grosses touches tactiles Surface RT) -->
+    <div id="bottom-controls">
+      <button id="btn-open-source" class="ctrl-btn" title="Changer la source (Disque local / NAS)">
+        📁 Source
+      </button>
+
+      <button id="btn-open-settings" class="ctrl-btn" title="Options de transition & cadre">
+        ⚙ Transitions
+      </button>
+
+      <span class="ctrl-separator"></span>
+
+      <button id="btn-toggle-shuffle" class="ctrl-btn ctrl-btn-active" title="Lecture aléatoire sans répétition durant le cycle">
+        🔀 Aléatoire
+      </button>
+
+      <button id="btn-prev-photo" class="ctrl-btn" title="Photo précédente">
+        ◀ Précédent
+      </button>
+
+      <button id="btn-toggle-play" class="ctrl-btn ctrl-btn-primary" title="Lecture / Pause">
+        ❚❚ Pause
+      </button>
+
+      <button id="btn-next-photo" class="ctrl-btn" title="Photo suivante">
+        Suivant ▶
+      </button>
+
+      <button id="btn-rotate-photo" class="ctrl-btn" onclick="rotateCurrentPhoto()" title="Pivoter l'orientation de 90° (Touche R)">
+        ↻ Pivoter
+      </button>
+    </div>
+
+    <div id="surface-rt-badge">
+      Édition Optimisée Microsoft Surface Windows RT / Internet Explorer 10
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODALE 1 : CHOIX DE LA SOURCE DES PHOTOS                  -->
+  <!-- ========================================================= -->
+  <div id="modal-source" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Source des photos</h3>
+        <p>Sélectionnez vos photos depuis votre disque local ou votre partage NAS / SMB</p>
+        <button class="modal-close-btn" onclick="closeModal('modal-source')">&times;</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button id="tab-btn-local" class="modal-tab-btn active" onclick="switchSourceTab('local')">
+          Disque Dur Local
+        </button>
+        <button id="tab-btn-smb" class="modal-tab-btn" onclick="switchSourceTab('smb')">
+          Partage SMB / NAS
+        </button>
+        <button id="tab-btn-sample" class="modal-tab-btn" onclick="switchSourceTab('sample')">
+          Exemples Préchargés
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- ONGLET LOCAL -->
+        <div id="tab-content-local">
+          <div style="border: 2px dashed #44403c; border-radius: 8px; padding: 24px; text-align: center; background: #0c0a09;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🖼️</div>
+            <div style="font-size: 15px; font-weight: 600; color: #fafaf9; margin-bottom: 4px;">
+              Sélectionnez les photos sur votre Surface RT ou disque
+            </div>
+            <p style="font-size: 12px; color: #a8a29e; margin-bottom: 16px;">
+              Vous pouvez sélectionner un ou plusieurs fichiers images depuis votre tablette ou carte MicroSD.
+            </p>
+
+            <button class="btn-primary" onclick="document.getElementById('input-local-files').click()">
+              Parcourir mes photos...
+            </button>
+            <input type="file" id="input-local-files" multiple accept="image/*" style="display: none;" onchange="handleLocalFilesSelected(this.files)" />
+          </div>
+
+          <div class="alert-box alert-info" style="margin-top: 14px;">
+            <strong>Compatibilité Surface RT :</strong> Sur Windows RT, vos photos peuvent provenir du dossier <em>Images</em> de la tablette ou d'une carte MicroSD insérée sur le côté de la Surface.
+          </div>
+        </div>
+
+        <!-- ONGLET SMB / NAS -->
+        <div id="tab-content-smb" style="display: none;">
+          <div class="form-row clearfix">
+            <div class="form-col-6">
+              <div class="form-group">
+                <label>Adresse IP ou Nom du NAS</label>
+                <input type="text" id="smb-host" class="form-control" value="192.168.1.100" placeholder="192.168.1.50 ou synology.local" />
+              </div>
+            </div>
+            <div class="form-col-6">
+              <div class="form-group">
+                <label>Nom du Partage SMB</label>
+                <input type="text" id="smb-share" class="form-control" value="photos" placeholder="ex: photos ou public" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row clearfix">
+            <div class="form-col-6">
+              <div class="form-group">
+                <label>Sous-dossier (Optionnel)</label>
+                <input type="text" id="smb-folder" class="form-control" value="" placeholder="ex: Famille/2024" />
+              </div>
+            </div>
+            <div class="form-col-6">
+              <div class="form-group">
+                <label>Port SMB</label>
+                <input type="number" id="smb-port" class="form-control" value="445" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row clearfix">
+            <div class="form-col-6">
+              <div class="form-group">
+                <label>Nom d'utilisateur NAS</label>
+                <input type="text" id="smb-user" class="form-control" value="" placeholder="ex: admin" />
+              </div>
+            </div>
+            <div class="form-col-6">
+              <div class="form-group">
+                <label>Mot de passe NAS</label>
+                <input type="password" id="smb-pass" class="form-control" value="" placeholder="••••••••" />
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <button id="btn-test-smb" class="btn-default" onclick="testSmbConnection()">
+              Tester la connexion SMB
+            </button>
+            <button id="btn-load-smb" class="btn-primary" style="margin-left: 8px;" onclick="loadSmbPhotos()">
+              Charger les photos du NAS
+            </button>
+            <button class="btn-default" style="margin-left: 8px;" onclick="loadSimulatedNas()">
+              Simuler un NAS
+            </button>
+          </div>
+
+          <div id="smb-feedback" style="display: none; margin-top: 12px;"></div>
+
+          <div class="alert-box alert-info" style="margin-top: 12px;">
+            <strong>Comment ça marche :</strong> Votre tablette Surface RT communique avec le serveur Node.js, qui négocie le protocole SMB avec votre NAS Synology, QNAP, Freebox ou PC Windows. Les images sont ensuite affichées sans ralentir le processeur ARM Tegra 3.
+          </div>
+        </div>
+
+        <!-- ONGLET EXEMPLES -->
+        <div id="tab-content-sample" style="display: none;">
+          <p style="font-size: 13px; color: #d6d3d1; margin-bottom: 12px;">
+            Chargez instantanément notre galerie haute définition de paysages pour apprécier les effets de transition et les styles de cadre.
+          </p>
+          <button class="btn-primary" onclick="loadSamplePhotos()">
+            Charger la galerie de démonstration (8 photos)
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-default" onclick="closeModal('modal-source')">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODALE 2 : REGLAGES TRANSITIONS & CADRE                   -->
+  <!-- ========================================================= -->
+  <div id="modal-settings" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Personnalisation des transitions & cadre</h3>
+        <p>Ajustez les effets visuels, la cadence et l'habillage</p>
+        <button class="modal-close-btn" onclick="closeModal('modal-settings')">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- 1. TRANSITIONS -->
+        <div style="font-size: 12px; font-weight: 600; color: #f59e0b; text-transform: uppercase; margin-bottom: 8px;">
+          Type de transition entre chaque image
+        </div>
+
+        <div class="transition-grid clearfix">
+          <div class="transition-card">
+            <div class="transition-card-inner selected" id="opt-trans-fade" onclick="selectTransition('fade')">
+              <div class="transition-card-title">Fondu enchaîné</div>
+              <div class="transition-card-desc">Douce transparence cinématographique classique</div>
+            </div>
+          </div>
+          <div class="transition-card">
+            <div class="transition-card-inner" id="opt-trans-slide-h" onclick="selectTransition('slide-h')">
+              <div class="transition-card-title">Glissement horizontal</div>
+              <div class="transition-card-desc">Défilement latéral fluide façon carrousel</div>
+            </div>
+          </div>
+          <div class="transition-card">
+            <div class="transition-card-inner" id="opt-trans-slide-v" onclick="selectTransition('slide-v')">
+              <div class="transition-card-title">Glissement vertical</div>
+              <div class="transition-card-desc">Défilement ascendant élégant</div>
+            </div>
+          </div>
+          <div class="transition-card">
+            <div class="transition-card-inner" id="opt-trans-zoom" onclick="selectTransition('zoom')">
+              <div class="transition-card-title">Zoom progressif</div>
+              <div class="transition-card-desc">Agrandissement doux au centre de l'image</div>
+            </div>
+          </div>
+          <div class="transition-card">
+            <div class="transition-card-inner" id="opt-trans-flip" onclick="selectTransition('flip')">
+              <div class="transition-card-title">Retournement 3D</div>
+              <div class="transition-card-desc">Rotation perspective spatiale spectaculaire</div>
+            </div>
+          </div>
+          <div class="transition-card">
+            <div class="transition-card-inner" id="opt-trans-random" onclick="selectTransition('random')">
+              <div class="transition-card-title">Aléatoire</div>
+              <div class="transition-card-desc">Alterne automatiquement les effets à chaque image</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. DUREES -->
+        <div class="form-row clearfix" style="margin-top: 16px;">
+          <div class="form-col-6">
+            <div class="form-group">
+              <label>Temps d'affichage par photo : <strong id="lbl-interval">10 secondes</strong></label>
+              <select id="select-interval" class="form-control" onchange="changeInterval(this.value)">
+                <option value="3">3 secondes</option>
+                <option value="5">5 secondes</option>
+                <option value="6">6 secondes</option>
+                <option value="10" selected="selected">10 secondes (Recommandé)</option>
+                <option value="15">15 secondes</option>
+                <option value="30">30 secondes</option>
+                <option value="60">1 minute</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-col-6">
+            <div class="form-group">
+              <label>Vitesse de transition :</label>
+              <select id="select-trans-speed" class="form-control" onchange="changeTransSpeed(this.value)">
+                <option value="0.5">Rapide (0.5s)</option>
+                <option value="1.0">Normale (1.0s)</option>
+                <option value="1.8" selected="selected">Douce (1.8s)</option>
+                <option value="2.5">Très lente (2.5s)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. STYLE DU CADRE & HORLOGE -->
+        <div class="form-row clearfix" style="margin-top: 10px;">
+          <div class="form-col-6">
+            <div class="form-group">
+              <label>Habillage du Cadre (Bordures) :</label>
+              <select id="select-frame-style" class="form-control" onchange="changeFrameStyle(this.value)">
+                <option value="frame-style-borderless" selected="selected">Plein écran sans bordure</option>
+                <option value="frame-style-passe-partout">Passe-Partout Blanc Galerie</option>
+                <option value="frame-style-wood-oak">Cadre Chêne Clair</option>
+                <option value="frame-style-wood-walnut">Cadre Noyer Foncé</option>
+                <option value="frame-style-aluminum-black">Aluminium Brossé Noir</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-col-6">
+            <div class="form-group">
+              <label>Remplissage de l'écran :</label>
+              <select id="select-fitting" class="form-control" onchange="changeFittingMode(this.value)">
+                <option value="fit-cover" selected="selected">Remplir l'écran (Cover)</option>
+                <option value="fit-contain">Photo entière + Fond flou (Contain)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row clearfix">
+          <div class="form-col-6">
+            <div class="form-group">
+              <label>Position de l'Horloge & Date :</label>
+              <select id="select-clock" class="form-control" onchange="changeClockPos(this.value)">
+                <option value="clock-pos-bottom-left" selected="selected">En bas à gauche</option>
+                <option value="clock-pos-bottom-right">En bas à droite</option>
+                <option value="clock-pos-top-left">En haut à gauche</option>
+                <option value="clock-pos-top-right">En haut à droite</option>
+                <option value="clock-pos-none">Désactivée (Masquée)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-col-6">
+            <div class="form-group">
+              <label>Ordre de défilement :</label>
+              <select id="select-shuffle-mode" class="form-control" onchange="changeShuffleMode(this.value)">
+                <option value="shuffle" selected="selected">Aléatoire sans répétition (Cycle complet)</option>
+                <option value="sequential">Par ordre séquentiel (1, 2, 3...)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row clearfix">
+          <div class="form-col-12">
+            <div class="form-group">
+              <label>Réorientation automatique des photos portrait (vers paysage) :</label>
+              <select id="select-portrait-orient" class="form-control" onchange="changePortraitOrient(this.value)">
+                <option value="rotate-90" selected="selected">Pivoter à 90° (Mode paysage horaire - Recommandé)</option>
+                <option value="rotate-270">Pivoter à -90° (Mode paysage anti-horaire)</option>
+                <option value="none">Désactivé (Conserver orientation portrait)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="closeModal('modal-settings')">Appliquer & Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- JAVASCRIPT ES5 STRICTEMENT COMPATIBLE IE10 / SURFACE RT   -->
+  <!-- ========================================================= -->
+  <script type="text/javascript">
+    (function () {
+      'use strict';
+
+      // 1. Photos de démonstration par défaut
+      var defaultPhotos = [
+        {
+          id: 's1',
+          name: 'Matin brumeux dans les Alpes',
+          path: 'Collection Démo / Alpes.jpg',
+          url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's2',
+          name: 'Coucher de soleil sur la côte sauvage',
+          path: 'Collection Démo / Côte Sauvage.jpg',
+          url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's3',
+          name: 'Forêt de bambous d\'Arashiyama',
+          path: 'Collection Démo / Kyoto.jpg',
+          url: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's4',
+          name: 'Reflets lacustres aux Dolomites',
+          path: 'Collection Démo / Dolomites.jpg',
+          url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's5',
+          name: 'Lumières chaleureuses au village',
+          path: 'Collection Démo / Soirée Dorée.jpg',
+          url: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's6',
+          name: 'Désert ondulant aux heures dorées',
+          path: 'Collection Démo / Dunes.jpg',
+          url: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's7',
+          name: 'Cascade secrète et mousse émeraude',
+          path: 'Collection Démo / Chute d\'eau.jpg',
+          url: 'https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's8',
+          name: 'Aurore boréale au-dessus des fjords',
+          path: 'Collection Démo / Aurore Polaire.jpg',
+          url: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?auto=format&fit=crop&w=1920&q=80'
+        },
+        {
+          id: 's9',
+          name: 'Séquoias géants vers la canopée (Portrait)',
+          path: 'Collection Démo / Séquoia Géant.jpg',
+          url: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=1200&h=1800&q=85',
+          width: 1200,
+          height: 1800
+        },
+        {
+          id: 's10',
+          name: 'Phare dans la brume marine (Portrait)',
+          path: 'Collection Démo / Phare Océan.jpg',
+          url: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=1200&h=1800&q=85',
+          width: 1200,
+          height: 1800
+        },
+        {
+          id: 's11',
+          name: 'Sentier d\'automne sous les érables (Portrait)',
+          path: 'Collection Démo / Érable Automne (Vertical).jpg',
+          url: 'https://images.unsplash.com/photo-1476820865390-c52aeebb9891?auto=format&fit=crop&w=1200&h=1800&q=85',
+          width: 1200,
+          height: 1800
+        },
+        {
+          id: 's12',
+          name: 'Cascades d\'Islande en contre-plongée (Portrait)',
+          path: 'Collection Démo / Chute Skogafoss (Vertical).jpg',
+          url: 'https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&w=1200&h=1800&q=85',
+          width: 1200,
+          height: 1800
+        }
+      ];
+
+      // État de l'application
+      var photos = defaultPhotos;
+      var currentIndex = 0;
+      var isPlaying = true;
+      var isShuffle = true; // Par défaut : lecture aléatoire sans répétition durant tout le cycle
+      var portraitReorientation = 'rotate-90'; // rotate-90, rotate-270, none
+      var photoRotations = {}; // id -> degrees (0, 90, 180, 270)
+      var shuffleDeck = [];
+      var shufflePointer = 0;
+      var intervalSeconds = 10;
+      var transitionDurationSec = 1.8;
+      var currentTransition = 'fade'; // fade, slide-h, slide-v, zoom, flip, random
+      var fittingMode = 'fit-cover';
+      var frameStyle = 'frame-style-borderless';
+      var clockPos = 'clock-pos-bottom-left';
+      var sourceLabel = 'Galerie Démonstration';
+
+      // Timers & Calques
+      var slideTimer = null;
+      var activeLayerIndex = 0; // 0 = layer A, 1 = layer B
+      var autoHideTimeout = null;
+      var transitionReqId = 0;
+      var transitionCleanupTimer = null;
+
+      // Éléments DOM
+      var layerA = document.getElementById('layer-a');
+      var layerB = document.getElementById('layer-b');
+      var ambientBg = document.getElementById('ambient-background');
+      var frameBorderWrapper = document.getElementById('frame-border-wrapper');
+      var clockOverlay = document.getElementById('clock-overlay');
+      var clockTime = document.getElementById('clock-time');
+      var clockDate = document.getElementById('clock-date');
+      var photoTitle = document.getElementById('photo-title');
+      var photoPath = document.getElementById('photo-path');
+      var topBar = document.getElementById('top-bar');
+      var bottomControls = document.getElementById('bottom-controls');
+      var badgeSourceLabel = document.getElementById('badge-source-label');
+      var badgePhotoIndex = document.getElementById('badge-photo-index');
+      var btnTogglePlay = document.getElementById('btn-toggle-play');
+      var btnToggleShuffle = document.getElementById('btn-toggle-shuffle');
+
+      // -------------------------------------------------------------
+      // 2. Gestion Aléatoire (Deck de Cycle complet sans répétition)
+      // -------------------------------------------------------------
+      function generateShuffleDeck(count, avoidFirstIndex) {
+        if (count <= 0) return [];
+        var deck = [];
+        for (var i = 0; i < count; i++) {
+          deck.push(i);
+        }
+        for (var i = count - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var temp = deck[i];
+          deck[i] = deck[j];
+          deck[j] = temp;
+        }
+        if (count > 1 && avoidFirstIndex !== undefined && avoidFirstIndex >= 0 && deck[0] === avoidFirstIndex) {
+          var swapIdx = 1 + Math.floor(Math.random() * (count - 1));
+          var temp2 = deck[0];
+          deck[0] = deck[swapIdx];
+          deck[swapIdx] = temp2;
+        }
+        return deck;
+      }
+
+      function initShuffleDeck() {
+        if (!photos || photos.length === 0) {
+          shuffleDeck = [];
+          shufflePointer = 0;
+          return;
+        }
+        shuffleDeck = generateShuffleDeck(photos.length);
+        shufflePointer = 0;
+      }
+
+      // -------------------------------------------------------------
+      // 3. Gestion des Transitions
+      // -------------------------------------------------------------
+      function getNextTransition() {
+        if (currentTransition === 'random') {
+          var choices = ['fade', 'slide-h', 'slide-v', 'zoom', 'flip'];
+          var randIdx = Math.floor(Math.random() * choices.length);
+          return choices[randIdx];
+        }
+        return currentTransition;
+      }
+
+      function preloadPhotosAround(idx) {
+        if (!photos || photos.length <= 1) return;
+        var next1, next2;
+        if (isShuffle && shuffleDeck && shuffleDeck.length === photos.length) {
+          var n1 = (shufflePointer + 1) % shuffleDeck.length;
+          var n2 = (shufflePointer + 2) % shuffleDeck.length;
+          next1 = shuffleDeck[n1];
+          next2 = shuffleDeck[n2];
+        } else {
+          next1 = (idx + 1) % photos.length;
+          next2 = (idx + 2) % photos.length;
+        }
+        if (photos[next1] && photos[next1].url) {
+          var i1 = new Image();
+          i1.src = photos[next1].url;
+        }
+        if (photos[next2] && photos[next2].url) {
+          var i2 = new Image();
+          i2.src = photos[next2].url;
+        }
+      }
+
+      function showPhoto(index, direction) {
+        if (!photos || photos.length === 0) return;
+        if (index < 0) index = photos.length - 1;
+        if (index >= photos.length) index = 0;
+        currentIndex = index;
+
+        var photo = photos[currentIndex];
+        var incomingLayer = (activeLayerIndex === 0) ? layerB : layerA;
+        var outgoingLayer = (activeLayerIndex === 0) ? layerA : layerB;
+        var trans = getNextTransition();
+
+        var thisReqId = ++transitionReqId;
+        if (transitionCleanupTimer) {
+          clearTimeout(transitionCleanupTimer);
+          transitionCleanupTimer = null;
+        }
+
+        // 1. Mise à jour immédiate des libellés
+        photoTitle.innerText = photo.name || 'Photo sans titre';
+        photoPath.innerText = photo.path || '';
+        badgePhotoIndex.innerText = isShuffle
+          ? '🔀 ' + (shufflePointer + 1) + ' / ' + photos.length
+          : (currentIndex + 1) + ' / ' + photos.length;
+
+        // Préchargement de l'image pour s'assurer que le calque entrant n'affiche JAMAIS l'ancienne image
+        var img = new Image();
+        var isExecuted = false;
+
+        function executeTransition() {
+          if (isExecuted) return;
+          if (thisReqId !== transitionReqId) return;
+          isExecuted = true;
+
+          // Détection du mode portrait et calcul de l'angle de rotation
+          var isPortrait = (photo.width && photo.height)
+            ? (photo.height > photo.width)
+            : ((img.naturalHeight && img.naturalWidth) ? (img.naturalHeight > img.naturalWidth) : false);
+          var effRot = 0;
+          if (photoRotations[photo.id] !== undefined) {
+            effRot = photoRotations[photo.id];
+          } else if (isPortrait) {
+            if (portraitReorientation === 'rotate-90') effRot = 90;
+            else if (portraitReorientation === 'rotate-270') effRot = 270;
+          }
+
+          var stage = document.getElementById('photo-stage');
+          var vpW = stage ? stage.clientWidth : window.innerWidth;
+          var vpH = stage ? stage.clientHeight : window.innerHeight;
+
+          if (effRot % 180 !== 0 && vpW > 0 && vpH > 0) {
+            incomingLayer.style.width = vpH + 'px';
+            incomingLayer.style.height = vpW + 'px';
+            incomingLayer.style.top = ((vpH - vpW) / 2) + 'px';
+            incomingLayer.style.left = ((vpW - vpH) / 2) + 'px';
+            incomingLayer.style.msTransform = 'rotate(' + effRot + 'deg)';
+            incomingLayer.style.transform = 'rotate(' + effRot + 'deg)';
+          } else {
+            incomingLayer.style.width = '100%';
+            incomingLayer.style.height = '100%';
+            incomingLayer.style.top = '0';
+            incomingLayer.style.left = '0';
+            if (effRot !== 0) {
+              incomingLayer.style.msTransform = 'rotate(' + effRot + 'deg)';
+              incomingLayer.style.transform = 'rotate(' + effRot + 'deg)';
+            } else {
+              incomingLayer.style.msTransform = 'none';
+              incomingLayer.style.transform = 'none';
+            }
+          }
+
+          if (effRot !== 0) {
+            photoTitle.innerHTML = '<span style="font-size:11px;background:rgba(245,158,11,0.25);color:#f59e0b;padding:2px 7px;border-radius:10px;margin-right:8px;border:1px solid rgba(245,158,11,0.4);">&#8635; ' + effRot + '° paysage</span>' + (photo.name || 'Photo sans titre');
+          } else {
+            photoTitle.innerText = photo.name || 'Photo sans titre';
+          }
+
+          // Affecter la nouvelle image au calque entrant
+          incomingLayer.style.backgroundImage = 'url("' + photo.url + '")';
+          if (ambientBg) {
+            ambientBg.style.backgroundImage = 'url("' + photo.url + '")';
+            if (effRot % 180 !== 0) {
+              ambientBg.style.msTransform = 'scale(1.4) rotate(' + effRot + 'deg)';
+              ambientBg.style.transform = 'scale(1.4) rotate(' + effRot + 'deg)';
+            } else {
+              ambientBg.style.msTransform = 'none';
+              ambientBg.style.transform = 'none';
+            }
+          }
+
+          // Configuration de la vitesse de transition
+          var speedStr = transitionDurationSec + 's';
+          incomingLayer.style.msTransitionDuration = speedStr;
+          incomingLayer.style.transitionDuration = speedStr;
+          outgoingLayer.style.msTransitionDuration = speedStr;
+          outgoingLayer.style.transitionDuration = speedStr;
+
+          // Le calque entrant est au premier plan pendant l'animation
+          incomingLayer.style.zIndex = '12';
+          outgoingLayer.style.zIndex = '8';
+
+          // Appliquer l'effet spécifique
+          if (trans === 'fade') {
+            incomingLayer.className = 'slide-layer ' + fittingMode + ' transition-fade';
+            outgoingLayer.className = 'slide-layer active ' + fittingMode + ' transition-fade';
+            setTimeout(function () {
+              if (thisReqId !== transitionReqId) return;
+              incomingLayer.style.opacity = '1';
+              outgoingLayer.style.opacity = '0';
+            }, 30);
+          } else if (trans === 'slide-h') {
+            incomingLayer.className = 'slide-layer ' + fittingMode + ' transition-slide-h ' + (direction >= 0 ? 'slide-enter-right' : 'slide-enter-left');
+            outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-slide-h';
+            setTimeout(function () {
+              if (thisReqId !== transitionReqId) return;
+              incomingLayer.className = 'slide-layer active ' + fittingMode + ' transition-slide-h';
+              incomingLayer.style.opacity = '1';
+              outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-slide-h ' + (direction >= 0 ? 'slide-exit-left' : 'slide-exit-right');
+              outgoingLayer.style.opacity = '0';
+            }, 30);
+          } else if (trans === 'slide-v') {
+            incomingLayer.className = 'slide-layer ' + fittingMode + ' transition-slide-v slide-enter-bottom';
+            outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-slide-v';
+            setTimeout(function () {
+              if (thisReqId !== transitionReqId) return;
+              incomingLayer.className = 'slide-layer active ' + fittingMode + ' transition-slide-v';
+              incomingLayer.style.opacity = '1';
+              outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-slide-v slide-exit-top';
+              outgoingLayer.style.opacity = '0';
+            }, 30);
+          } else if (trans === 'zoom') {
+            incomingLayer.className = 'slide-layer ' + fittingMode + ' transition-zoom zoom-enter';
+            outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-zoom';
+            setTimeout(function () {
+              if (thisReqId !== transitionReqId) return;
+              incomingLayer.className = 'slide-layer active ' + fittingMode + ' transition-zoom';
+              incomingLayer.style.opacity = '1';
+              outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-zoom zoom-exit';
+              outgoingLayer.style.opacity = '0';
+            }, 30);
+          } else if (trans === 'flip') {
+            incomingLayer.className = 'slide-layer ' + fittingMode + ' transition-flip flip-enter';
+            outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-flip';
+            setTimeout(function () {
+              if (thisReqId !== transitionReqId) return;
+              incomingLayer.className = 'slide-layer active ' + fittingMode + ' transition-flip';
+              incomingLayer.style.opacity = '1';
+              outgoingLayer.className = 'slide-layer ' + fittingMode + ' transition-flip flip-exit';
+              outgoingLayer.style.opacity = '0';
+            }, 30);
+          }
+
+          // Bascule de calque actif
+          activeLayerIndex = (activeLayerIndex === 0) ? 1 : 0;
+
+          // Nettoyage après fin de transition : vider l'ancien calque pour qu'aucune photo précédente ne persiste
+          transitionCleanupTimer = setTimeout(function () {
+            if (thisReqId !== transitionReqId) return;
+            outgoingLayer.style.backgroundImage = 'none';
+            outgoingLayer.style.opacity = '0';
+            outgoingLayer.style.msTransform = 'none';
+            outgoingLayer.style.transform = 'none';
+            outgoingLayer.style.width = '100%';
+            outgoingLayer.style.height = '100%';
+            outgoingLayer.style.top = '0';
+            outgoingLayer.style.left = '0';
+            outgoingLayer.className = 'slide-layer ' + fittingMode;
+            incomingLayer.className = 'slide-layer active ' + fittingMode;
+            incomingLayer.style.zIndex = '10';
+            outgoingLayer.style.zIndex = '5';
+          }, (transitionDurationSec * 1000) + 60);
+
+          // Précharger les prochaines photos en tâche de fond
+          preloadPhotosAround(currentIndex);
+        }
+
+        // Si les dimensions sont déjà pré-calculées (photos d'exemple ou analysées), démarrer immédiatement
+        if (photo.width && photo.height) {
+          executeTransition();
+        }
+
+        img.onload = executeTransition;
+        img.onerror = executeTransition;
+        img.src = photo.url;
+
+        // Si l'image est déjà en mémoire cache du navigateur
+        if (img.complete) {
+          executeTransition();
+        }
+      }
+
+      function nextPhoto() {
+        if (!photos || photos.length === 0) return;
+        if (isShuffle && photos.length > 1) {
+          if (!shuffleDeck || shuffleDeck.length !== photos.length) {
+            initShuffleDeck();
+          }
+          shufflePointer++;
+          if (shufflePointer >= shuffleDeck.length) {
+            // Fin du cycle complet : toutes les photos ont été montrées 1 fois.
+            // On prépare un nouveau cycle complet en évitant une répétition immédiate.
+            var lastIdx = shuffleDeck[shuffleDeck.length - 1];
+            shuffleDeck = generateShuffleDeck(photos.length, lastIdx);
+            shufflePointer = 0;
+          }
+          showPhoto(shuffleDeck[shufflePointer], 1);
+        } else {
+          showPhoto(currentIndex + 1, 1);
+        }
+      }
+
+      function prevPhoto() {
+        if (!photos || photos.length === 0) return;
+        if (isShuffle && photos.length > 1) {
+          if (!shuffleDeck || shuffleDeck.length !== photos.length) {
+            initShuffleDeck();
+          }
+          shufflePointer--;
+          if (shufflePointer < 0) {
+            shufflePointer = shuffleDeck.length - 1;
+          }
+          showPhoto(shuffleDeck[shufflePointer], -1);
+        } else {
+          showPhoto(currentIndex - 1, -1);
+        }
+      }
+
+      function rotateCurrentPhoto() {
+        if (!photos || photos.length === 0) return;
+        var photo = photos[currentIndex];
+        if (!photo) return;
+        var cur = photoRotations[photo.id];
+        if (cur === undefined) {
+          var isPort = (photo.width && photo.height) ? (photo.height > photo.width) : false;
+          if (isPort) {
+            cur = (portraitReorientation === 'rotate-90') ? 90 : (portraitReorientation === 'rotate-270' ? 270 : 0);
+          } else {
+            cur = 0;
+          }
+        }
+        photoRotations[photo.id] = (cur + 90) % 360;
+        showPhoto(currentIndex, 0);
+      }
+      window.rotateCurrentPhoto = rotateCurrentPhoto;
+
+      window.changePortraitOrient = function (val) {
+        portraitReorientation = val;
+        showPhoto(currentIndex, 0);
+      };
+
+      // -------------------------------------------------------------
+      // 4. Cadence du Diaporama
+      // -------------------------------------------------------------
+      function startSlideshow() {
+        isPlaying = true;
+        btnTogglePlay.innerText = '❚❚ Pause';
+
+        if (slideTimer) clearInterval(slideTimer);
+
+        slideTimer = setInterval(function () {
+          nextPhoto();
+        }, intervalSeconds * 1000);
+      }
+
+      function stopSlideshow() {
+        isPlaying = false;
+        btnTogglePlay.innerText = '▶ Lecture';
+        if (slideTimer) clearInterval(slideTimer);
+      }
+
+      function togglePlay() {
+        if (isPlaying) {
+          stopSlideshow();
+        } else {
+          startSlideshow();
+        }
+      }
+
+      function toggleShuffle() {
+        isShuffle = !isShuffle;
+        var selectShuffle = document.getElementById('select-shuffle-mode');
+        if (isShuffle) {
+          btnToggleShuffle.className = 'ctrl-btn ctrl-btn-active';
+          if (selectShuffle) selectShuffle.value = 'shuffle';
+          // Initialiser le cycle aléatoire en partant de la photo en cours
+          var remaining = [];
+          for (var i = 0; i < photos.length; i++) {
+            if (i !== currentIndex) remaining.push(i);
+          }
+          for (var i = remaining.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var temp = remaining[i];
+            remaining[i] = remaining[j];
+            remaining[j] = temp;
+          }
+          shuffleDeck = [currentIndex].concat(remaining);
+          shufflePointer = 0;
+          badgePhotoIndex.innerText = '🔀 1 / ' + photos.length;
+        } else {
+          btnToggleShuffle.className = 'ctrl-btn';
+          if (selectShuffle) selectShuffle.value = 'sequential';
+          badgePhotoIndex.innerText = (currentIndex + 1) + ' / ' + photos.length;
+        }
+      }
+
+      window.changeShuffleMode = function (val) {
+        if (val === 'shuffle' && !isShuffle) {
+          toggleShuffle();
+        } else if (val === 'sequential' && isShuffle) {
+          toggleShuffle();
+        }
+      };
+
+      // -------------------------------------------------------------
+      // 4. Horloge & Date en Français
+      // -------------------------------------------------------------
+      var joursSemaine = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+      var moisAnnee = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+      function updateClock() {
+        var now = new Date();
+        var h = now.getHours();
+        var m = now.getMinutes();
+        var hStr = (h < 10 ? '0' : '') + h;
+        var mStr = (m < 10 ? '0' : '') + m;
+
+        clockTime.innerText = hStr + ':' + mStr;
+
+        var jNom = joursSemaine[now.getDay()];
+        var jNum = now.getDate();
+        var mNom = moisAnnee[now.getMonth()];
+        var an = now.getFullYear();
+
+        clockDate.innerText = jNom + ' ' + jNum + ' ' + mNom + ' ' + an;
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // -------------------------------------------------------------
+      // 5. Masquage automatique des commandes (3.5s)
+      // -------------------------------------------------------------
+      function wakeControls() {
+        topBar.className = '';
+        bottomControls.className = '';
+        if (autoHideTimeout) clearTimeout(autoHideTimeout);
+        autoHideTimeout = setTimeout(function () {
+          topBar.className = 'controls-hidden';
+          bottomControls.className = 'controls-hidden';
+        }, 3500);
+      }
+
+      window.addEventListener('mousemove', wakeControls, false);
+      window.addEventListener('touchstart', wakeControls, false);
+      window.addEventListener('MSPointerDown', wakeControls, false);
+
+      // Support des gestes de balayage (Swipe) pour Surface RT
+      var touchStartX = 0;
+      window.addEventListener('touchstart', function (e) {
+        if (e.touches && e.touches[0]) {
+          touchStartX = e.touches[0].clientX;
+        }
+      }, false);
+      window.addEventListener('touchend', function (e) {
+        if (e.changedTouches && e.changedTouches[0]) {
+          var deltaX = e.changedTouches[0].clientX - touchStartX;
+          if (deltaX > 60) {
+            prevPhoto();
+          } else if (deltaX < -60) {
+            nextPhoto();
+          }
+        }
+      }, false);
+
+      // -------------------------------------------------------------
+      // 6. Plein écran compatible IE10 / Surface RT
+      // -------------------------------------------------------------
+      function toggleFullscreen() {
+        var doc = document;
+        var elem = doc.documentElement;
+        var isFull = doc.fullscreenElement || doc.msFullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement;
+
+        if (!isFull) {
+          if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+          } else if (elem.msRequestFullscreen) {
+            elem.msRequestFullscreen();
+          } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+          }
+        } else {
+          if (doc.exitFullscreen) {
+            doc.exitFullscreen();
+          } else if (doc.msExitFullscreen) {
+            doc.msExitFullscreen();
+          } else if (doc.webkitExitFullscreen) {
+            doc.webkitExitFullscreen();
+          }
+        }
+      }
+
+      document.getElementById('btn-toggle-fullscreen').onclick = toggleFullscreen;
+
+      // -------------------------------------------------------------
+      // 7. Raccourcis Clavier
+      // -------------------------------------------------------------
+      window.addEventListener('keydown', function (e) {
+        var tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+        switch (e.keyCode) {
+          case 32: // Espace
+            e.preventDefault();
+            togglePlay();
+            break;
+          case 39: // Flèche Droite
+            e.preventDefault();
+            nextPhoto();
+            break;
+          case 37: // Flèche Gauche
+            e.preventDefault();
+            prevPhoto();
+            break;
+          case 70: // F (Plein écran)
+            e.preventDefault();
+            toggleFullscreen();
+            break;
+          case 82: // R (Pivoter l'orientation)
+            e.preventDefault();
+            rotateCurrentPhoto();
+            break;
+          case 83: // S (Source)
+            e.preventDefault();
+            window.openModal('modal-source');
+            break;
+          case 84: // T (Transitions)
+            e.preventDefault();
+            window.openModal('modal-settings');
+            break;
+        }
+      }, false);
+
+      // -------------------------------------------------------------
+      // 8. Gestion des Sources : Local, SMB / NAS, Démo
+      // -------------------------------------------------------------
+      window.handleLocalFilesSelected = function (fileList) {
+        if (!fileList || fileList.length === 0) return;
+
+        var loaded = [];
+        for (var i = 0; i < fileList.length; i++) {
+          var file = fileList[i];
+          if (file.type && file.type.indexOf('image/') !== 0) continue;
+
+          var url = '';
+          if (window.URL && window.URL.createObjectURL) {
+            url = window.URL.createObjectURL(file);
+          } else if (window.webkitURL && window.webkitURL.createObjectURL) {
+            url = window.webkitURL.createObjectURL(file);
+          }
+
+          if (url) {
+            loaded.push({
+              id: 'loc_' + i + '_' + new Date().getTime(),
+              name: file.name,
+              path: 'Disque Local / ' + file.name,
+              url: url
+            });
+          }
+        }
+
+        if (loaded.length > 0) {
+          photos = loaded;
+          sourceLabel = 'Disque Local (' + loaded.length + ' photos)';
+          badgeSourceLabel.innerText = sourceLabel;
+          window.closeModal('modal-source');
+          if (isShuffle && photos.length > 1) {
+            initShuffleDeck();
+            showPhoto(shuffleDeck[0], 1);
+          } else {
+            showPhoto(0, 1);
+          }
+          startSlideshow();
+        } else {
+          alert('Aucune image valide sélectionnée.');
+        }
+      };
+
+      // XHR pour les requêtes SMB
+      function ajaxPost(url, data, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            var response = null;
+            try {
+              response = JSON.parse(xhr.responseText);
+            } catch (err) {
+              response = { success: false, message: xhr.responseText || 'Erreur serveur' };
+            }
+            callback(xhr.status, response);
+          }
+        };
+        xhr.send(JSON.stringify(data));
+      }
+
+      window.testSmbConnection = function () {
+        var btn = document.getElementById('btn-test-smb');
+        var fb = document.getElementById('smb-feedback');
+        btn.disabled = true;
+        btn.innerText = 'Test en cours...';
+        fb.style.display = 'none';
+
+        var config = {
+          host: document.getElementById('smb-host').value,
+          share: document.getElementById('smb-share').value,
+          username: document.getElementById('smb-user').value,
+          password: document.getElementById('smb-pass').value,
+          port: parseInt(document.getElementById('smb-port').value, 10) || 445
+        };
+
+        ajaxPost('/api/smb/test', config, function (status, res) {
+          btn.disabled = false;
+          btn.innerText = 'Tester la connexion SMB';
+          fb.style.display = 'block';
+
+          if (status === 200 && res.success) {
+            fb.className = 'alert-box alert-success';
+            fb.innerHTML = '<strong>Succès :</strong> ' + res.message;
+          } else {
+            fb.className = 'alert-box alert-error';
+            fb.innerHTML = '<strong>Échec de connexion :</strong> ' + (res.message || 'Impossible de joindre le NAS.');
+          }
+        });
+      };
+
+      window.loadSmbPhotos = function () {
+        var btn = document.getElementById('btn-load-smb');
+        var fb = document.getElementById('smb-feedback');
+        btn.disabled = true;
+        btn.innerText = 'Recherche des photos...';
+
+        var config = {
+          host: document.getElementById('smb-host').value,
+          share: document.getElementById('smb-share').value,
+          folderPath: document.getElementById('smb-folder').value,
+          username: document.getElementById('smb-user').value,
+          password: document.getElementById('smb-pass').value,
+          port: parseInt(document.getElementById('smb-port').value, 10) || 445,
+          recursive: true
+        };
+
+        ajaxPost('/api/smb/scan', config, function (status, res) {
+          btn.disabled = false;
+          btn.innerText = 'Charger les photos du NAS';
+
+          if (status === 200 && res.success && res.photos && res.photos.length > 0) {
+            var loaded = [];
+            for (var i = 0; i < res.photos.length; i++) {
+              var p = res.photos[i];
+              loaded.push({
+                id: p.id,
+                name: p.name,
+                path: '\\\\' + config.host + '\\' + config.share + '\\' + p.path,
+                url: p.url
+              });
+            }
+
+            photos = loaded;
+            sourceLabel = 'NAS SMB (' + config.host + '/' + config.share + ')';
+            badgeSourceLabel.innerText = sourceLabel;
+            window.closeModal('modal-source');
+            if (isShuffle && photos.length > 1) {
+              initShuffleDeck();
+              showPhoto(shuffleDeck[0], 1);
+            } else {
+              showPhoto(0, 1);
+            }
+            startSlideshow();
+          } else {
+            fb.style.display = 'block';
+            fb.className = 'alert-box alert-error';
+            fb.innerHTML = '<strong>Aucune photo trouvée :</strong> ' + (res.message || 'Vérifiez le nom du partage ou dossier.');
+          }
+        });
+      };
+
+      window.loadSimulatedNas = function () {
+        var simPhotos = [];
+        for (var i = 0; i < defaultPhotos.length; i++) {
+          var p = defaultPhotos[i];
+          simPhotos.push({
+            id: 'sim_' + i,
+            name: p.name,
+            path: '\\\\Synology-DiskStation\\Photos\\Famille\\' + p.name + '.jpg',
+            url: p.url
+          });
+        }
+        photos = simPhotos;
+        sourceLabel = 'NAS SMB (Synology //Photos/Famille)';
+        badgeSourceLabel.innerText = sourceLabel;
+        window.closeModal('modal-source');
+        if (isShuffle && photos.length > 1) {
+          initShuffleDeck();
+          showPhoto(shuffleDeck[0], 1);
+        } else {
+          showPhoto(0, 1);
+        }
+        startSlideshow();
+      };
+
+      window.loadSamplePhotos = function () {
+        photos = defaultPhotos;
+        sourceLabel = 'Galerie Démonstration';
+        badgeSourceLabel.innerText = sourceLabel;
+        window.closeModal('modal-source');
+        if (isShuffle && photos.length > 1) {
+          initShuffleDeck();
+          showPhoto(shuffleDeck[0], 1);
+        } else {
+          showPhoto(0, 1);
+        }
+        startSlideshow();
+      };
+
+      // -------------------------------------------------------------
+      // 9. Modales & Réglages Visuels
+      // -------------------------------------------------------------
+      window.openModal = function (modalId) {
+        var m = document.getElementById(modalId);
+        if (m) m.style.display = 'block';
+      };
+
+      window.closeModal = function (modalId) {
+        var m = document.getElementById(modalId);
+        if (m) m.style.display = 'none';
+      };
+
+      window.switchSourceTab = function (tabName) {
+        document.getElementById('tab-btn-local').className = 'modal-tab-btn ' + (tabName === 'local' ? 'active' : '');
+        document.getElementById('tab-btn-smb').className = 'modal-tab-btn ' + (tabName === 'smb' ? 'active' : '');
+        document.getElementById('tab-btn-sample').className = 'modal-tab-btn ' + (tabName === 'sample' ? 'active' : '');
+
+        document.getElementById('tab-content-local').style.display = (tabName === 'local' ? 'block' : 'none');
+        document.getElementById('tab-content-smb').style.display = (tabName === 'smb' ? 'block' : 'none');
+        document.getElementById('tab-content-sample').style.display = (tabName === 'sample' ? 'block' : 'none');
+      };
+
+      window.selectTransition = function (type) {
+        currentTransition = type;
+        var ids = ['fade', 'slide-h', 'slide-v', 'zoom', 'flip', 'random'];
+        for (var i = 0; i < ids.length; i++) {
+          var el = document.getElementById('opt-trans-' + ids[i]);
+          if (el) {
+            el.className = 'transition-card-inner ' + (ids[i] === type ? 'selected' : '');
+          }
+        }
+      };
+
+      window.changeInterval = function (val) {
+        intervalSeconds = parseInt(val, 10) || 10;
+        document.getElementById('lbl-interval').innerText = intervalSeconds + ' secondes';
+        if (isPlaying) {
+          startSlideshow();
+        }
+      };
+
+      window.changeTransSpeed = function (val) {
+        transitionDurationSec = parseFloat(val) || 1.8;
+      };
+
+      window.changeFrameStyle = function (val) {
+        frameStyle = val;
+        frameBorderWrapper.className = frameStyle;
+      };
+
+      window.changeFittingMode = function (val) {
+        fittingMode = val;
+        layerA.className = 'slide-layer ' + fittingMode + (layerA.className.indexOf('active') !== -1 ? ' active' : '');
+        layerB.className = 'slide-layer ' + fittingMode + (layerB.className.indexOf('active') !== -1 ? ' active' : '');
+      };
+
+      window.changeClockPos = function (val) {
+        clockPos = val;
+        clockOverlay.className = clockPos;
+      };
+
+      // Attacher les boutons
+      document.getElementById('btn-open-source').onclick = function () {
+        window.openModal('modal-source');
+      };
+      document.getElementById('btn-open-settings').onclick = function () {
+        window.openModal('modal-settings');
+      };
+      document.getElementById('btn-prev-photo').onclick = prevPhoto;
+      document.getElementById('btn-next-photo').onclick = nextPhoto;
+      document.getElementById('btn-toggle-play').onclick = togglePlay;
+      document.getElementById('btn-toggle-shuffle').onclick = toggleShuffle;
+
+      // -------------------------------------------------------------
+      // 10. Démarrage
+      // -------------------------------------------------------------
+      if (isShuffle && photos.length > 1) {
+        initShuffleDeck();
+        showPhoto(shuffleDeck[0], 1);
+      } else {
+        showPhoto(0, 1);
+      }
+      startSlideshow();
+      wakeControls();
+    })();
+  </script>
+</body>
+</html>

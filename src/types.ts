@@ -16,7 +16,6 @@ export type TransitionType =
   | 'fade'
   | 'slide-h'
   | 'slide-v'
-  | 'kenburns'
   | 'zoom'
   | 'blur'
   | 'flip'
@@ -45,6 +44,8 @@ export interface SmbConnectionConfig {
   recursive: boolean;
 }
 
+export type PortraitOrientationMode = 'rotate-90' | 'rotate-270' | 'none';
+
 export interface FrameSettings {
   // Slideshow timing
   intervalSeconds: number; // Duration each photo stays visible
@@ -52,6 +53,7 @@ export interface FrameSettings {
   transitionDuration: number; // Duration of transition in seconds (e.g. 1.2s)
   kenBurnsActive: boolean; // Continuous subtle pan/zoom while image is displayed
   shuffle: boolean; // Random order or sequential
+  portraitReorientation: PortraitOrientationMode; // Auto-reorient portrait photos to landscape
   
   // Visual presentation
   frameStyle: FrameStyle;

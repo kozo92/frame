@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { PhotoItem, FrameSettings, TransitionType } from '../types';
 import { ClockOverlay } from './ClockOverlay';
-import { ImageOff } from 'lucide-react';
+import { ImageOff, RotateCw } from 'lucide-react';
 
 interface DigitalFrameProps {
   currentPhoto: PhotoItem | null;
   direction: number;
   settings: FrameSettings;
+  manualRotation?: number;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -16,9 +17,84 @@ export function DigitalFrame({
   currentPhoto,
   direction,
   settings,
+  manualRotation,
 }: DigitalFrameProps) {
   const [activeTransition, setActiveTransition] = useState<TransitionType>(settings.transition);
   const [loadError, setLoadError] = useState(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>(() => ({
+    width: typeof window !== 'undefined' ? (window.innerWidth || 1280) : 1280,
+    height: typeof window !== 'undefined' ? (window.innerHeight || 800) : 800,
+  }));
+  const [aspectMap, setAspectMap] = useState<Record<string, boolean>>({});
+
+  // Measure viewport dimensions for seamless landscape rotation
+  useEffect(() => {
+    if (!viewportRef.current) return;
+    const updateSize = () => {
+      if (viewportRef.current) {
+        const rect = viewportRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          setViewportSize({ width: rect.width, height: rect.height });
+        }
+      }
+    };
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(viewportRef.current);
+    window.addEventListener('resize', updateSize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
+
+  // Immediate detection if photo metadata is known, else fallback to aspectMap
+  const isPortrait = useMemo(() => {
+    if (!currentPhoto) return false;
+    if (currentPhoto.height && currentPhoto.width) {
+      return currentPhoto.height > currentPhoto.width;
+    }
+    return aspectMap[currentPhoto.id] ?? false;
+  }, [currentPhoto, aspectMap]);
+
+  // Detect image aspect ratio if not already in photo metadata
+  useEffect(() => {
+    if (!currentPhoto) return;
+    if (currentPhoto.width && currentPhoto.height) {
+      return; // Dimensions already known synchronously
+    }
+    let isMounted = true;
+    const img = new Image();
+    img.onload = () => {
+      if (isMounted && img.naturalHeight && img.naturalWidth) {
+        const isPort = img.naturalHeight > img.naturalWidth;
+        setAspectMap((prev) => ({ ...prev, [currentPhoto.id]: isPort }));
+      }
+    };
+    img.src = currentPhoto.url;
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPhoto?.id, currentPhoto?.url, currentPhoto?.width, currentPhoto?.height]);
+
+  // Compute rotation angle based on settings and manual override
+  const effectiveRotation = useMemo(() => {
+    if (manualRotation !== undefined) {
+      return manualRotation;
+    }
+    if (isPortrait) {
+      if (settings.portraitReorientation === 'rotate-90') {
+        return 90;
+      }
+      if (settings.portraitReorientation === 'rotate-270') {
+        return 270;
+      }
+    }
+    return 0;
+  }, [manualRotation, isPortrait, settings.portraitReorientation]);
+
+  const isRotatedQuarterTurn = effectiveRotation % 180 !== 0;
 
   // When transition is set to 'random', choose a random transition on each photo change
   useEffect(() => {
@@ -27,7 +103,6 @@ export function DigitalFrame({
         'fade',
         'slide-h',
         'slide-v',
-        'kenburns',
         'zoom',
         'blur',
         'flip',
@@ -47,46 +122,40 @@ export function DigitalFrame({
     switch (activeTransition) {
       case 'slide-h':
         return {
-          initial: { x: direction >= 0 ? '100%' : '-100%', opacity: 0.7 },
-          animate: { x: 0, opacity: 1 },
-          exit: { x: direction >= 0 ? '-100%' : '100%', opacity: 0 },
+          initial: { x: direction >= 0 ? '100%' : '-100%', opacity: 1, zIndex: 20 },
+          animate: { x: 0, opacity: 1, zIndex: 20 },
+          exit: { opacity: 0, zIndex: 1 },
         };
       case 'slide-v':
         return {
-          initial: { y: direction >= 0 ? '100%' : '-100%', opacity: 0.7 },
-          animate: { y: 0, opacity: 1 },
-          exit: { y: direction >= 0 ? '-100%' : '100%', opacity: 0 },
+          initial: { y: direction >= 0 ? '100%' : '-100%', opacity: 1, zIndex: 20 },
+          animate: { y: 0, opacity: 1, zIndex: 20 },
+          exit: { opacity: 0, zIndex: 1 },
         };
       case 'zoom':
         return {
-          initial: { scale: 1.15, opacity: 0 },
-          animate: { scale: 1, opacity: 1 },
-          exit: { scale: 0.9, opacity: 0 },
+          initial: { scale: 1.08, opacity: 0, zIndex: 20 },
+          animate: { scale: 1, opacity: 1, zIndex: 20 },
+          exit: { opacity: 0, zIndex: 1 },
         };
       case 'blur':
         return {
-          initial: { filter: 'blur(20px)', opacity: 0, scale: 1.05 },
-          animate: { filter: 'blur(0px)', opacity: 1, scale: 1 },
-          exit: { filter: 'blur(16px)', opacity: 0, scale: 0.98 },
+          initial: { filter: 'blur(16px)', opacity: 0, zIndex: 20 },
+          animate: { filter: 'blur(0px)', opacity: 1, zIndex: 20 },
+          exit: { opacity: 0, zIndex: 1 },
         };
       case 'flip':
         return {
-          initial: { rotateY: direction >= 0 ? 80 : -80, opacity: 0, transformPerspective: 1200 },
-          animate: { rotateY: 0, opacity: 1, transformPerspective: 1200 },
-          exit: { rotateY: direction >= 0 ? -80 : 80, opacity: 0, transformPerspective: 1200 },
-        };
-      case 'kenburns':
-        return {
-          initial: { scale: 1.18, opacity: 0, x: -10, y: 10 },
-          animate: { scale: 1.02, opacity: 1, x: 0, y: 0 },
-          exit: { opacity: 0, scale: 0.98 },
+          initial: { rotateY: direction >= 0 ? 80 : -80, opacity: 0, transformPerspective: 1200, zIndex: 20 },
+          animate: { rotateY: 0, opacity: 1, transformPerspective: 1200, zIndex: 20 },
+          exit: { opacity: 0, zIndex: 1 },
         };
       case 'fade':
       default:
         return {
-          initial: { opacity: 0 },
-          animate: { opacity: 1 },
-          exit: { opacity: 0 },
+          initial: { opacity: 0, zIndex: 20 },
+          animate: { opacity: 1, zIndex: 20 },
+          exit: { opacity: 0, zIndex: 1 },
         };
     }
   }, [activeTransition, direction]);
@@ -114,6 +183,26 @@ export function DigitalFrame({
     filter: `brightness(${settings.brightness}%)`,
   };
 
+  // Dimensions of rotated photo container to span the landscape viewport
+  const rotatedContainerStyle: React.CSSProperties = isRotatedQuarterTurn && viewportSize.width > 0 && viewportSize.height > 0
+    ? {
+        width: `${viewportSize.height}px`,
+        height: `${viewportSize.width}px`,
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: `translate(-50%, -50%) rotate(${effectiveRotation}deg)`,
+        transformOrigin: 'center center',
+        transition: 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+      }
+    : {
+        width: '100%',
+        height: '100%',
+        transform: effectiveRotation !== 0 ? `rotate(${effectiveRotation}deg)` : undefined,
+        transformOrigin: 'center center',
+        transition: 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+      };
+
   return (
     <div
       id="digital-frame-root"
@@ -128,7 +217,10 @@ export function DigitalFrame({
         >
           <div
             className="w-full h-full bg-center bg-cover scale-125 blur-3xl opacity-35 transition-all duration-1000 ease-out"
-            style={{ backgroundImage: `url("${currentPhoto.url}")` }}
+            style={{
+              backgroundImage: `url("${currentPhoto.url}")`,
+              transform: isRotatedQuarterTurn ? `scale(1.4) rotate(${effectiveRotation}deg)` : undefined,
+            }}
           />
           <div className="absolute inset-0 bg-black/45" />
         </div>
@@ -141,10 +233,11 @@ export function DigitalFrame({
       >
         {/* The inner viewport holding the picture */}
         <div
+          ref={viewportRef}
           id="frame-photo-viewport"
           className="relative w-full h-full overflow-hidden flex items-center justify-center bg-black"
         >
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence initial={false}>
             {currentPhoto && !loadError ? (
               <motion.div
                 key={currentPhoto.id}
@@ -158,38 +251,32 @@ export function DigitalFrame({
                 }}
                 className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden"
               >
-                {/* Continuous Ken Burns drift option */}
-                <motion.div
-                  className="w-full h-full flex items-center justify-center"
-                  animate={
-                    settings.kenBurnsActive || activeTransition === 'kenburns'
-                      ? {
-                          scale: [1, 1.08, 1.04],
-                          x: [0, 15, -10],
-                          y: [0, -8, 8],
-                        }
-                      : { scale: 1, x: 0, y: 0 }
-                  }
-                  transition={{
-                    duration: settings.intervalSeconds * 1.5,
-                    ease: 'easeInOut',
-                    repeat: Infinity,
-                    repeatType: 'reverse',
-                  }}
+                <div
+                  style={rotatedContainerStyle}
+                  className="flex items-center justify-center"
                 >
                   <img
                     id={`photo-${currentPhoto.id}`}
                     src={currentPhoto.url}
                     alt={currentPhoto.name}
+                    loading="eager"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     onError={() => setLoadError(true)}
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      if (img.naturalHeight && img.naturalWidth) {
+                        const isPort = img.naturalHeight > img.naturalWidth;
+                        setAspectMap((prev) => (prev[currentPhoto.id] === isPort ? prev : { ...prev, [currentPhoto.id]: isPort }));
+                      }
+                    }}
                     className={`w-full h-full select-none ${
                       settings.fittingMode === 'cover'
                         ? 'object-cover object-center'
                         : 'object-contain object-center'
                     }`}
                   />
-                </motion.div>
+                </div>
               </motion.div>
             ) : loadError ? (
               <div
@@ -233,8 +320,30 @@ export function DigitalFrame({
               id="frame-photo-caption"
               className="absolute bottom-6 right-6 z-20 pointer-events-none max-w-sm sm:max-w-md text-right drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
             >
-              <div className="font-['Plus_Jakarta_Sans'] font-medium text-white/90 text-sm sm:text-base truncate">
-                {currentPhoto.name}
+              <div className="font-['Plus_Jakarta_Sans'] font-medium text-white/90 text-sm sm:text-base truncate flex items-center justify-end gap-2">
+                {isPortrait && effectiveRotation !== 0 && (
+                  <span
+                    id="badge-auto-portrait-reorient"
+                    className="inline-flex items-center gap-1 text-[11px] bg-amber-500/25 text-amber-300 border border-amber-500/50 px-2.5 py-0.5 rounded-full font-mono font-normal"
+                    title={`Format portrait d'origine réorienté à ${effectiveRotation}° en mode paysage`}
+                  >
+                    <RotateCw className="w-3 h-3" /> Auto-paysage ({effectiveRotation}°)
+                  </span>
+                )}
+                {isPortrait && effectiveRotation === 0 && (
+                  <span
+                    id="badge-portrait-mode-original"
+                    className="inline-flex items-center gap-1 text-[11px] bg-stone-800/80 text-stone-300 border border-stone-700 px-2 py-0.5 rounded-full font-mono font-normal"
+                  >
+                    Portrait original
+                  </span>
+                )}
+                {!isPortrait && effectiveRotation !== 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-mono font-normal">
+                    <RotateCw className="w-3 h-3" /> {effectiveRotation}°
+                  </span>
+                )}
+                <span>{currentPhoto.name}</span>
               </div>
               {currentPhoto.path && (
                 <div className="font-['Plus_Jakarta_Sans'] text-white/60 text-xs truncate mt-0.5">

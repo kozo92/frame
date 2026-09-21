@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PhotoItem, SmbConnectionConfig } from '../types';
 import { SAMPLE_PHOTOS } from '../data/samplePhotos';
+import { detectFileMetadata } from '../utils/exif';
 
 interface SourceSelectorModalProps {
   isOpen: boolean;
@@ -78,16 +79,21 @@ export function SourceSelectorModal({
         const loadedPhotos: PhotoItem[] = [];
         const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp'];
 
-        // Helper to scan directory
+        // Helper to scan directory with streaming instant launch
+        let totalFilesFound = 0;
+        let hasLaunched = false;
+
         async function readDirEntries(dir: any, relativePath: string) {
           for await (const entry of dir.values()) {
             if (entry.kind === 'file') {
               const nameLower = entry.name.toLowerCase();
               if (imageExtensions.some((ext) => nameLower.endsWith(ext))) {
+                totalFilesFound++;
                 const file = await entry.getFile();
                 const objectUrl = URL.createObjectURL(file);
+
                 loadedPhotos.push({
-                  id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  id: `local_${Date.now()}_${loadedPhotos.length}_${Math.random().toString(36).substr(2, 6)}`,
                   name: entry.name,
                   url: objectUrl,
                   source: 'local',
@@ -95,9 +101,21 @@ export function SourceSelectorModal({
                   size: file.size,
                   lastModified: file.lastModified,
                 });
+
+                // Dès que les 30 premières photos sont répertoriées, on lance le diaporama immédiatement !
+                if (!hasLaunched && loadedPhotos.length >= 30) {
+                  hasLaunched = true;
+                  onPhotosLoaded([...loadedPhotos], `Disque Local (${dirHandle.name}) - Chargement progressif...`);
+                  onClose();
+                }
+
+                // Tous les 250 fichiers découverts, rafraîchir la progression
+                if (totalFilesFound % 250 === 0) {
+                  setLocalStatusMessage(`Indexation rapide : ${totalFilesFound} photos trouvées...`);
+                }
               }
-            } else if (entry.kind === 'directory' && loadedPhotos.length < 500) {
-              // Subdirectories
+            } else if (entry.kind === 'directory') {
+              // Parcours des sous-dossiers
               await readDirEntries(entry, relativePath ? `${relativePath}/${entry.name}` : entry.name);
             }
           }
@@ -108,8 +126,11 @@ export function SourceSelectorModal({
         if (loadedPhotos.length === 0) {
           setLocalStatusMessage('Aucune image trouvée dans le dossier sélectionné.');
         } else {
+          // Mise à jour finale avec la totalité des photos scannées
           onPhotosLoaded(loadedPhotos, `Disque Local (${dirHandle.name})`);
-          onClose();
+          if (!hasLaunched) {
+            onClose();
+          }
         }
       } else {
         // Fallback to hidden input
@@ -141,7 +162,7 @@ export function SourceSelectorModal({
     processFileList(Array.from(files), 'Photos Locales');
   };
 
-  const processFileList = (fileArray: File[], sourceLabel: string) => {
+  const processFileList = async (fileArray: File[], sourceLabel: string) => {
     const imageFiles = fileArray.filter((file) => file.type.startsWith('image/'));
 
     if (imageFiles.length === 0) {
@@ -149,16 +170,22 @@ export function SourceSelectorModal({
       return;
     }
 
+    setIsScanningLocal(true);
+    setLocalStatusMessage(`Préparation instantanée (${imageFiles.length} photos)...`);
+
+    // Pour 10 000 photos, créer les URL d'objet de façon synchrone et légère
+    // sans bloquer avec 10 000 décodages EXIF en amont !
     const photos: PhotoItem[] = imageFiles.map((file, idx) => ({
       id: `local_f_${Date.now()}_${idx}`,
       name: file.name,
       url: URL.createObjectURL(file),
-      source: 'local',
+      source: 'local' as const,
       path: (file as any).webkitRelativePath || file.name,
       size: file.size,
       lastModified: file.lastModified,
     }));
 
+    setIsScanningLocal(false);
     onPhotosLoaded(photos, `${sourceLabel} (${photos.length} photos)`);
     onClose();
   };

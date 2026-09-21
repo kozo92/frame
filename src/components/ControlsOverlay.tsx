@@ -12,6 +12,8 @@ import {
   Sun,
   Layers,
   HelpCircle,
+  Tablet,
+  RotateCw,
 } from 'lucide-react';
 import { FrameSettings } from '../types';
 
@@ -20,14 +22,17 @@ interface ControlsOverlayProps {
   onTogglePlay: () => void;
   onNext: () => void;
   onPrev: () => void;
+  onRotatePhoto?: () => void;
+  currentRotation?: number;
+  onCyclePortraitReorientation?: () => void;
   currentIndex: number;
   totalPhotos: number;
   sourceLabel: string;
   settings: FrameSettings;
+  shuffleStep?: number;
   onOpenSourceModal: () => void;
   onOpenSettingsModal: () => void;
   onToggleShuffle: () => void;
-  progressPercent: number;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
 }
@@ -37,14 +42,17 @@ export function ControlsOverlay({
   onTogglePlay,
   onNext,
   onPrev,
+  onRotatePhoto,
+  currentRotation = 0,
+  onCyclePortraitReorientation,
   currentIndex,
   totalPhotos,
   sourceLabel,
   settings,
+  shuffleStep,
   onOpenSourceModal,
   onOpenSettingsModal,
   onToggleShuffle,
-  progressPercent,
   isFullscreen,
   onToggleFullscreen,
 }: ControlsOverlayProps) {
@@ -84,20 +92,6 @@ export function ControlsOverlay({
 
   return (
     <>
-      {/* Discreet top countdown progress bar */}
-      {settings.showProgressBar && (
-        <div
-          id="frame-progress-track"
-          className="absolute top-0 left-0 right-0 h-1 bg-white/10 z-40 overflow-hidden pointer-events-none"
-        >
-          <div
-            id="frame-progress-bar"
-            className="h-full bg-amber-500/80 transition-all duration-200 ease-linear"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      )}
-
       {/* Floating Header info bar */}
       <div
         id="frame-top-controls"
@@ -112,11 +106,29 @@ export function ControlsOverlay({
           </span>
           <span className="text-white/30 text-xs">•</span>
           <span className="text-xs text-stone-400 font-mono">
-            {totalPhotos > 0 ? `${currentIndex + 1} / ${totalPhotos}` : '0 photo'}
+            {totalPhotos > 0 ? (
+              settings.shuffle && shuffleStep !== undefined ? (
+                <span title="Position dans le cycle aléatoire en cours (sans répétition)">🔀 {shuffleStep + 1} / {totalPhotos}</span>
+              ) : (
+                <span>{currentIndex + 1} / {totalPhotos}</span>
+              )
+            ) : (
+              '0 photo'
+            )}
           </span>
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Surface RT / IE10 Button */}
+          <a
+            href="/ie10"
+            className="hidden md:flex items-center gap-1.5 bg-stone-950/80 backdrop-blur-md border border-amber-500/30 hover:border-amber-500/80 px-3 py-1.5 rounded-full text-xs text-amber-300 hover:text-amber-200 transition-colors shadow-lg cursor-pointer"
+            title="Ouvrir l'édition compatible Microsoft Surface RT / Internet Explorer 10"
+          >
+            <Tablet className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mode Surface RT / IE10</span>
+          </a>
+
           {/* Transition badge */}
           <button
             onClick={onOpenSettingsModal}
@@ -131,8 +143,6 @@ export function ControlsOverlay({
                 ? 'Gliss. H'
                 : settings.transition === 'slide-v'
                 ? 'Gliss. V'
-                : settings.transition === 'kenburns'
-                ? 'Ken Burns'
                 : settings.transition === 'zoom'
                 ? 'Zoom'
                 : settings.transition === 'blur'
@@ -197,7 +207,11 @@ export function ControlsOverlay({
               ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
               : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800'
           }`}
-          title={settings.shuffle ? 'Lecture aléatoire activée' : 'Lecture séquentielle'}
+          title={
+            settings.shuffle
+              ? 'Lecture aléatoire activée (sans répétition durant tout le cycle)'
+              : 'Lecture séquentielle (ordre 1, 2, 3...)'
+          }
         >
           <Shuffle className="w-4 h-4" />
         </button>
@@ -233,6 +247,54 @@ export function ControlsOverlay({
         >
           <SkipForward className="w-4 h-4" />
         </button>
+
+        {/* Quick Rotate Button with degree badge */}
+        {onRotatePhoto && (
+          <button
+            id="btn-rotate-photo"
+            onClick={onRotatePhoto}
+            className={`relative p-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1 ${
+              currentRotation !== 0
+                ? 'text-amber-400 bg-amber-500/15 border border-amber-500/30'
+                : 'text-stone-300 hover:text-amber-400 hover:bg-stone-800'
+            }`}
+            title={`Pivoter manuellement de 90° (Touche R) - Actuel: ${currentRotation}°`}
+          >
+            <RotateCw className="w-4 h-4" />
+            {currentRotation !== 0 && (
+              <span className="text-[10px] font-mono font-bold leading-none">{currentRotation}°</span>
+            )}
+          </button>
+        )}
+
+        {/* Auto-Portrait Reorientation quick cycle button */}
+        {onCyclePortraitReorientation && (
+          <button
+            id="btn-toggle-portrait-orient"
+            onClick={onCyclePortraitReorientation}
+            className={`px-2 py-1 rounded-xl text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 border ${
+              settings.portraitReorientation !== 'none'
+                ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                : 'bg-stone-900/60 border-stone-800 text-stone-400 hover:text-stone-200'
+            }`}
+            title={`Réorientation automatique portrait vers paysage : ${
+              settings.portraitReorientation === 'rotate-90'
+                ? 'Paysage horaire (90°)'
+                : settings.portraitReorientation === 'rotate-270'
+                ? 'Paysage anti-horaire (-90°)'
+                : 'Désactivé (Conserver portrait original)'
+            }. Cliquez pour changer de mode.`}
+          >
+            <span className="text-xs">📐</span>
+            <span className="hidden md:inline">
+              {settings.portraitReorientation === 'rotate-90'
+                ? 'Auto 90°'
+                : settings.portraitReorientation === 'rotate-270'
+                ? 'Auto -90°'
+                : 'Portrait natif'}
+            </span>
+          </button>
+        )}
 
         <div className="h-4 w-px bg-white/15 mx-1" />
 
@@ -276,6 +338,10 @@ export function ControlsOverlay({
               <kbd className="px-1.5 py-0.5 bg-stone-800 rounded text-stone-200">→</kbd>
             </div>
             <div className="flex justify-between">
+              <span className="text-stone-400">Pivoter l'orientation :</span>
+              <kbd className="px-1.5 py-0.5 bg-stone-800 rounded text-amber-300">R</kbd>
+            </div>
+            <div className="flex justify-between">
               <span className="text-stone-400">Plein écran :</span>
               <kbd className="px-1.5 py-0.5 bg-stone-800 rounded text-stone-200">F</kbd>
             </div>
@@ -287,6 +353,9 @@ export function ControlsOverlay({
               <span className="text-stone-400">Réglages transitions :</span>
               <kbd className="px-1.5 py-0.5 bg-stone-800 rounded text-stone-200">T</kbd>
             </div>
+          </div>
+          <div className="pt-2 border-t border-stone-800 text-[11px] text-amber-400/90">
+            <span className="font-semibold">Microsoft Surface RT :</span> Utilisez la version allégée compatible IE10 via le lien en haut ou l'URL <a href="/ie10" className="underline hover:text-amber-300">/ie10</a>.
           </div>
         </div>
       )}

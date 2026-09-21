@@ -9,6 +9,7 @@ import {
   Eye,
   Maximize2,
   Check,
+  RotateCw,
 } from 'lucide-react';
 import { FrameSettings, TransitionType, FrameStyle, FittingMode, ClockPosition } from '../types';
 
@@ -40,11 +41,6 @@ const TRANSITIONS: TransitionOption[] = [
     id: 'slide-v',
     label: 'Glissement vertical',
     description: 'Défilement de bas en haut pour un style panoramique.',
-  },
-  {
-    id: 'kenburns',
-    label: 'Effet Ken Burns',
-    description: 'Zoom et dérive subtils façon documentaire et cadres photo haut de gamme.',
   },
   {
     id: 'zoom',
@@ -220,41 +216,15 @@ export function TransitionSettingsModal({
             </div>
           </div>
 
-          {/* 3. KEN BURNS CONTINU & SHUFFLE */}
+          {/* 3. SHUFFLE */}
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-stone-950/40 border border-stone-800 rounded-xl">
               <div className="space-y-0.5">
                 <div className="font-medium text-xs text-stone-200">
-                  Dérive continue (Effet Ken Burns permanent)
+                  Ordre aléatoire sans répétition (Shuffle)
                 </div>
                 <div className="text-[11px] text-stone-400">
-                  Maintient un lent mouvement de zoom et de translation pendant toute la durée d'affichage
-                </div>
-              </div>
-              <button
-                id="toggle-kenburns-active"
-                onClick={() =>
-                  onUpdateSettings({ kenBurnsActive: !settings.kenBurnsActive })
-                }
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                  settings.kenBurnsActive ? 'bg-amber-500' : 'bg-stone-700'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 ${
-                    settings.kenBurnsActive ? 'left-6' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-stone-950/40 border border-stone-800 rounded-xl">
-              <div className="space-y-0.5">
-                <div className="font-medium text-xs text-stone-200">
-                  Ordre aléatoire (Shuffle)
-                </div>
-                <div className="text-[11px] text-stone-400">
-                  Mélange l'ordre de défilement des photos
+                  Joue l'ensemble de la collection photo sans aucune répétition durant tout le cycle
                 </div>
               </div>
               <button
@@ -269,6 +239,74 @@ export function TransitionSettingsModal({
                     settings.shuffle ? 'left-6' : 'left-1'
                   }`}
                 />
+              </button>
+            </div>
+          </div>
+
+          {/* 4. REORIENTATION DES PHOTOS PORTRAIT EN PAYSAGE */}
+          <div className="p-4 bg-stone-950/50 border border-stone-800 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-xs text-stone-200 flex items-center gap-1.5">
+                  <RotateCw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Réorientation des photos portrait vers paysage</span>
+                </div>
+                <div className="text-[11px] text-stone-400 mt-0.5">
+                  Fait pivoter automatiquement les photos verticales pour les afficher au format paysage sur votre écran
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
+                id="btn-orient-rotate-90"
+                onClick={() => onUpdateSettings({ portraitReorientation: 'rotate-90' })}
+                className={`py-2 px-3 rounded-lg text-xs font-medium border text-left transition-colors cursor-pointer ${
+                  settings.portraitReorientation === 'rotate-90'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-300'
+                    : 'border-stone-800 bg-stone-900/60 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <div className="font-semibold flex items-center justify-between">
+                  <span>Pivoter à 90°</span>
+                  {settings.portraitReorientation === 'rotate-90' && <Check className="w-3.5 h-3.5" />}
+                </div>
+                <div className="text-[10px] text-stone-500 mt-0.5">Paysage horaire (Défaut)</div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-orient-rotate-270"
+                onClick={() => onUpdateSettings({ portraitReorientation: 'rotate-270' })}
+                className={`py-2 px-3 rounded-lg text-xs font-medium border text-left transition-colors cursor-pointer ${
+                  settings.portraitReorientation === 'rotate-270'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-300'
+                    : 'border-stone-800 bg-stone-900/60 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <div className="font-semibold flex items-center justify-between">
+                  <span>Pivoter à -90°</span>
+                  {settings.portraitReorientation === 'rotate-270' && <Check className="w-3.5 h-3.5" />}
+                </div>
+                <div className="text-[10px] text-stone-500 mt-0.5">Paysage anti-horaire</div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-orient-none"
+                onClick={() => onUpdateSettings({ portraitReorientation: 'none' })}
+                className={`py-2 px-3 rounded-lg text-xs font-medium border text-left transition-colors cursor-pointer ${
+                  settings.portraitReorientation === 'none'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-300'
+                    : 'border-stone-800 bg-stone-900/60 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <div className="font-semibold flex items-center justify-between">
+                  <span>Désactivé</span>
+                  {settings.portraitReorientation === 'none' && <Check className="w-3.5 h-3.5" />}
+                </div>
+                <div className="text-[10px] text-stone-500 mt-0.5">Conserver portrait</div>
               </button>
             </div>
           </div>
