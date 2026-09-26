@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { PhotoItem, SmbConnectionConfig } from '../types';
 import { SAMPLE_PHOTOS } from '../data/samplePhotos';
-import { detectFileMetadata } from '../utils/exif';
+import { getExifOrientationFromBlob, isExifPortrait } from '../utils/exif';
 
 interface SourceSelectorModalProps {
   isOpen: boolean;
@@ -92,6 +92,20 @@ export function SourceSelectorModal({
                 const file = await entry.getFile();
                 const objectUrl = URL.createObjectURL(file);
 
+                // Extraction rapide du tag EXIF 0x0112
+                let exifOrientation = 1;
+                let isPortrait: boolean | undefined = undefined;
+                if (loadedPhotos.length < 60) {
+                  try {
+                    exifOrientation = await getExifOrientationFromBlob(file);
+                    if (isExifPortrait(exifOrientation)) {
+                      isPortrait = true;
+                    }
+                  } catch {
+                    // Non-bloquant
+                  }
+                }
+
                 loadedPhotos.push({
                   id: `local_${Date.now()}_${loadedPhotos.length}_${Math.random().toString(36).substr(2, 6)}`,
                   name: entry.name,
@@ -100,6 +114,8 @@ export function SourceSelectorModal({
                   path: relativePath ? `${relativePath}/${entry.name}` : entry.name,
                   size: file.size,
                   lastModified: file.lastModified,
+                  exifOrientation,
+                  isPortrait,
                 });
 
                 // Dès que les 30 premières photos sont répertoriées, on lance le diaporama immédiatement !
@@ -173,17 +189,34 @@ export function SourceSelectorModal({
     setIsScanningLocal(true);
     setLocalStatusMessage(`Préparation instantanée (${imageFiles.length} photos)...`);
 
-    // Pour 10 000 photos, créer les URL d'objet de façon synchrone et légère
-    // sans bloquer avec 10 000 décodages EXIF en amont !
-    const photos: PhotoItem[] = imageFiles.map((file, idx) => ({
-      id: `local_f_${Date.now()}_${idx}`,
-      name: file.name,
-      url: URL.createObjectURL(file),
-      source: 'local' as const,
-      path: (file as any).webkitRelativePath || file.name,
-      size: file.size,
-      lastModified: file.lastModified,
-    }));
+    // Pré-détection immédiate du tag EXIF 0x0112 pour les premières photos
+    const photos: PhotoItem[] = await Promise.all(
+      imageFiles.map(async (file, idx) => {
+        let exifOrientation = 1;
+        let isPortrait: boolean | undefined = undefined;
+        if (idx < 60) {
+          try {
+            exifOrientation = await getExifOrientationFromBlob(file);
+            if (isExifPortrait(exifOrientation)) {
+              isPortrait = true;
+            }
+          } catch {
+            // Ignoré
+          }
+        }
+        return {
+          id: `local_f_${Date.now()}_${idx}`,
+          name: file.name,
+          url: URL.createObjectURL(file),
+          source: 'local' as const,
+          path: (file as any).webkitRelativePath || file.name,
+          size: file.size,
+          lastModified: file.lastModified,
+          exifOrientation,
+          isPortrait,
+        };
+      })
+    );
 
     setIsScanningLocal(false);
     onPhotosLoaded(photos, `${sourceLabel} (${photos.length} photos)`);

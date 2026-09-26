@@ -252,12 +252,29 @@ export function TransitionSettingsModal({
                   <span>Réorientation des photos portrait vers paysage</span>
                 </div>
                 <div className="text-[11px] text-stone-400 mt-0.5">
-                  Fait pivoter automatiquement les photos verticales pour les afficher au format paysage sur votre écran
+                  Par défaut, les photos portrait s'affichent intégralement sans rognage. Vous pouvez activer le pivotage en paysage si souhaité.
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
+                id="btn-orient-none"
+                onClick={() => onUpdateSettings({ portraitReorientation: 'none' })}
+                className={`py-2 px-3 rounded-lg text-xs font-medium border text-left transition-colors cursor-pointer ${
+                  settings.portraitReorientation === 'none'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-300'
+                    : 'border-stone-800 bg-stone-900/60 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <div className="font-semibold flex items-center justify-between">
+                  <span>Désactivé (Défaut)</span>
+                  {settings.portraitReorientation === 'none' && <Check className="w-3.5 h-3.5" />}
+                </div>
+                <div className="text-[10px] text-stone-500 mt-0.5">Complet sans rognage</div>
+              </button>
+
               <button
                 type="button"
                 id="btn-orient-rotate-90"
@@ -272,7 +289,7 @@ export function TransitionSettingsModal({
                   <span>Pivoter à 90°</span>
                   {settings.portraitReorientation === 'rotate-90' && <Check className="w-3.5 h-3.5" />}
                 </div>
-                <div className="text-[10px] text-stone-500 mt-0.5">Paysage horaire (Défaut)</div>
+                <div className="text-[10px] text-stone-500 mt-0.5">Paysage horaire</div>
               </button>
 
               <button
@@ -290,23 +307,6 @@ export function TransitionSettingsModal({
                   {settings.portraitReorientation === 'rotate-270' && <Check className="w-3.5 h-3.5" />}
                 </div>
                 <div className="text-[10px] text-stone-500 mt-0.5">Paysage anti-horaire</div>
-              </button>
-
-              <button
-                type="button"
-                id="btn-orient-none"
-                onClick={() => onUpdateSettings({ portraitReorientation: 'none' })}
-                className={`py-2 px-3 rounded-lg text-xs font-medium border text-left transition-colors cursor-pointer ${
-                  settings.portraitReorientation === 'none'
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-300'
-                    : 'border-stone-800 bg-stone-900/60 text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                <div className="font-semibold flex items-center justify-between">
-                  <span>Désactivé</span>
-                  {settings.portraitReorientation === 'none' && <Check className="w-3.5 h-3.5" />}
-                </div>
-                <div className="text-[10px] text-stone-500 mt-0.5">Conserver portrait</div>
               </button>
             </div>
           </div>

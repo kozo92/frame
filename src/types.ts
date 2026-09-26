@@ -10,6 +10,8 @@ export interface PhotoItem {
   lastModified?: number;
   width?: number;
   height?: number;
+  exifOrientation?: number; // Tag EXIF 0x0112 (1 to 8)
+  isPortrait?: boolean; // Détecté via tag EXIF 0x0112 (6, 8, etc.) ou ratio hauteur > largeur
 }
 
 export type TransitionType =

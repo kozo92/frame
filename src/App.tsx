@@ -5,6 +5,7 @@ import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { TransitionSettingsModal } from './components/TransitionSettingsModal';
 import { PhotoItem, FrameSettings, PortraitOrientationMode } from './types';
 import { SAMPLE_PHOTOS } from './data/samplePhotos';
+import { isExifPortrait, detectPhotoMetadata } from './utils/exif';
 
 // Fisher-Yates shuffle generator to guarantee that every photo is shown exactly once per cycle
 function generateShuffledDeck(count: number, avoidFirstIndex: number = -1): number[] {
@@ -59,7 +60,7 @@ export default function App() {
     transitionDuration: 1.8,
     kenBurnsActive: false,
     shuffle: true,
-    portraitReorientation: 'rotate-90',
+    portraitReorientation: 'none',
     frameStyle: 'borderless',
     fittingMode: 'cover',
     ambientBlurBackground: true,
@@ -73,6 +74,15 @@ export default function App() {
 
   // Manual rotation override map (by photo id -> degrees 0, 90, 180, 270)
   const [photoRotations, setPhotoRotations] = useState<Record<string, number>>({});
+  // Cache of detected photo metadata (exifOrientation, isPortrait)
+  const [photoMetadataMap, setPhotoMetadataMap] = useState<Record<string, { isPortrait: boolean; exifOrientation: number }>>({});
+
+  const handlePhotoMetadataDetected = useCallback((photoId: string, metadata: { isPortrait: boolean; exifOrientation: number }) => {
+    setPhotoMetadataMap((prev) => ({
+      ...prev,
+      [photoId]: metadata,
+    }));
+  }, []);
 
   // Navigation handlers
   const handleNext = useCallback(() => {
@@ -219,6 +229,17 @@ export default function App() {
     });
   };
 
+  // Helper to determine if a photo is portrait based on EXIF tag 0x0112, metadata, or dimensions
+  const checkIsPortrait = useCallback((photo: PhotoItem | null | undefined): boolean => {
+    if (!photo) return false;
+    if (photo.isPortrait !== undefined) return photo.isPortrait;
+    if (photo.exifOrientation && isExifPortrait(photo.exifOrientation)) return true;
+    const cached = photoMetadataMap[photo.id];
+    if (cached) return cached.isPortrait;
+    if (photo.height && photo.width) return photo.height > photo.width;
+    return false;
+  }, [photoMetadataMap]);
+
   // Calculate effective rotation for current photo (auto or manual)
   const currentPhotoEffectiveRotation = useMemo(() => {
     const photo = photos[currentIndex];
@@ -226,13 +247,13 @@ export default function App() {
     if (photoRotations[photo.id] !== undefined) {
       return photoRotations[photo.id];
     }
-    const isPort = (photo.height && photo.width) ? photo.height > photo.width : false;
+    const isPort = checkIsPortrait(photo);
     if (isPort) {
       if (settings.portraitReorientation === 'rotate-90') return 90;
       if (settings.portraitReorientation === 'rotate-270') return 270;
     }
     return 0;
-  }, [photos, currentIndex, photoRotations, settings.portraitReorientation]);
+  }, [photos, currentIndex, photoRotations, checkIsPortrait, settings.portraitReorientation]);
 
   // Manual rotation step per photo (+90 degrees from current visual angle)
   const handleRotateCurrentPhoto = useCallback(() => {
@@ -246,7 +267,7 @@ export default function App() {
       if (manual !== undefined) {
         baseAngle = manual;
       } else {
-        const isPort = (photo.height && photo.width) ? photo.height > photo.width : false;
+        const isPort = checkIsPortrait(photo);
         if (isPort) {
           if (settings.portraitReorientation === 'rotate-90') baseAngle = 90;
           else if (settings.portraitReorientation === 'rotate-270') baseAngle = 270;
@@ -255,7 +276,7 @@ export default function App() {
       const next = (baseAngle + 90) % 360;
       return { ...prev, [photo.id]: next };
     });
-  }, [photos, currentIndex, settings.portraitReorientation]);
+  }, [photos, currentIndex, checkIsPortrait, settings.portraitReorientation]);
 
   // Cycle portrait reorientation setting (Auto 90° -> Auto -90° -> Native/Off)
   const handleCyclePortraitReorientation = useCallback(() => {
@@ -369,13 +390,22 @@ export default function App() {
       ];
     }
     nextIndices.forEach((idx) => {
-      const url = photos[idx]?.url;
-      if (url) {
+      const p = photos[idx];
+      if (p?.url) {
         const img = new Image();
-        img.src = url;
+        img.src = p.url;
+        // Détecter également le tag EXIF 0x0112 à l'avance en arrière-plan
+        if (p.isPortrait === undefined && !photoMetadataMap[p.id]) {
+          detectPhotoMetadata(p.url).then((meta) => {
+            handlePhotoMetadataDetected(p.id, {
+              isPortrait: meta.isPortrait,
+              exifOrientation: meta.exifOrientation,
+            });
+          });
+        }
       }
     });
-  }, [currentIndex, photos, settings.shuffle]);
+  }, [currentIndex, photos, settings.shuffle, photoMetadataMap, handlePhotoMetadataDetected]);
 
   const currentPhoto = photos.length > 0 ? photos[currentIndex] : null;
 
@@ -389,6 +419,7 @@ export default function App() {
         manualRotation={currentPhoto ? photoRotations[currentPhoto.id] : undefined}
         onNext={handleNext}
         onPrev={handlePrev}
+        onPhotoMetadataDetected={handlePhotoMetadataDetected}
       />
 
       {/* Floating Ambient Controls */}

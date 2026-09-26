@@ -81,6 +81,8 @@ export const SAMPLE_PHOTOS: PhotoItem[] = [
     path: 'Collections / Forêts / Séquoia Géant (Vertical).jpg',
     width: 1200,
     height: 1800,
+    exifOrientation: 6,
+    isPortrait: true,
   },
   {
     id: 'sample-10',
@@ -90,6 +92,8 @@ export const SAMPLE_PHOTOS: PhotoItem[] = [
     path: 'Collections / Phares / Phare Océan (Vertical).jpg',
     width: 1200,
     height: 1800,
+    exifOrientation: 6,
+    isPortrait: true,
   },
   {
     id: 'sample-11',
@@ -99,6 +103,8 @@ export const SAMPLE_PHOTOS: PhotoItem[] = [
     path: 'Collections / Saisons / Érable Automne (Vertical).jpg',
     width: 1200,
     height: 1800,
+    exifOrientation: 6,
+    isPortrait: true,
   },
   {
     id: 'sample-12',
@@ -108,5 +114,7 @@ export const SAMPLE_PHOTOS: PhotoItem[] = [
     path: 'Collections / Islande / Chute Skogafoss (Vertical).jpg',
     width: 1200,
     height: 1800,
+    exifOrientation: 6,
+    isPortrait: true,
   },
 ];

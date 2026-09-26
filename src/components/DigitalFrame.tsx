@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { PhotoItem, FrameSettings, TransitionType } from '../types';
 import { ClockOverlay } from './ClockOverlay';
 import { ImageOff, RotateCw } from 'lucide-react';
+import { detectPhotoMetadata, isExifPortrait } from '../utils/exif';
 
 interface DigitalFrameProps {
   currentPhoto: PhotoItem | null;
@@ -11,6 +12,7 @@ interface DigitalFrameProps {
   manualRotation?: number;
   onNext: () => void;
   onPrev: () => void;
+  onPhotoMetadataDetected?: (photoId: string, metadata: { isPortrait: boolean; exifOrientation: number }) => void;
 }
 
 export function DigitalFrame({
@@ -18,6 +20,7 @@ export function DigitalFrame({
   direction,
   settings,
   manualRotation,
+  onPhotoMetadataDetected,
 }: DigitalFrameProps) {
   const [activeTransition, setActiveTransition] = useState<TransitionType>(settings.transition);
   const [loadError, setLoadError] = useState(false);
@@ -26,9 +29,9 @@ export function DigitalFrame({
     width: typeof window !== 'undefined' ? (window.innerWidth || 1280) : 1280,
     height: typeof window !== 'undefined' ? (window.innerHeight || 800) : 800,
   }));
-  const [aspectMap, setAspectMap] = useState<Record<string, boolean>>({});
+  const [metadataMap, setMetadataMap] = useState<Record<string, { isPortrait: boolean; exifOrientation: number }>>({});
 
-  // Measure viewport dimensions for seamless landscape rotation
+  // Mesure des dimensions du viewport pour la rotation plein écran
   useEffect(() => {
     if (!viewportRef.current) return;
     const updateSize = () => {
@@ -49,36 +52,73 @@ export function DigitalFrame({
     };
   }, []);
 
-  // Immediate detection if photo metadata is known, else fallback to aspectMap
-  const isPortrait = useMemo(() => {
-    if (!currentPhoto) return false;
-    if (currentPhoto.height && currentPhoto.width) {
-      return currentPhoto.height > currentPhoto.width;
-    }
-    return aspectMap[currentPhoto.id] ?? false;
-  }, [currentPhoto, aspectMap]);
+  // Détection du mode portrait en prenant en compte :
+  // 1. Les métadonnées existantes de la photo (photo.isPortrait, photo.exifOrientation)
+  // 2. Le cache local metadataMap alimenté par l'analyseur EXIF 0x0112
+  const detectedInfo = useMemo(() => {
+    if (!currentPhoto) return { isPortrait: false, exifOrientation: 1 };
 
-  // Detect image aspect ratio if not already in photo metadata
+    if (currentPhoto.isPortrait !== undefined) {
+      return {
+        isPortrait: currentPhoto.isPortrait,
+        exifOrientation: currentPhoto.exifOrientation ?? 1,
+      };
+    }
+
+    if (currentPhoto.exifOrientation && isExifPortrait(currentPhoto.exifOrientation)) {
+      return {
+        isPortrait: true,
+        exifOrientation: currentPhoto.exifOrientation,
+      };
+    }
+
+    if (currentPhoto.height && currentPhoto.width && currentPhoto.height > currentPhoto.width) {
+      return {
+        isPortrait: true,
+        exifOrientation: currentPhoto.exifOrientation ?? 1,
+      };
+    }
+
+    if (metadataMap[currentPhoto.id]) {
+      return metadataMap[currentPhoto.id];
+    }
+
+    return { isPortrait: false, exifOrientation: 1 };
+  }, [currentPhoto, metadataMap]);
+
+  const isPortrait = detectedInfo.isPortrait;
+  const currentExifOrientation = detectedInfo.exifOrientation;
+
+  // Analyse asynchrone du tag EXIF 0x0112 et des dimensions pour chaque photo affichée
   useEffect(() => {
     if (!currentPhoto) return;
-    if (currentPhoto.width && currentPhoto.height) {
-      return; // Dimensions already known synchronously
+    if (currentPhoto.isPortrait !== undefined && currentPhoto.exifOrientation !== undefined) {
+      return; // Métadonnées déjà complètes
     }
+    if (metadataMap[currentPhoto.id]) {
+      return; // Déjà analysé et mis en cache
+    }
+
     let isMounted = true;
-    const img = new Image();
-    img.onload = () => {
-      if (isMounted && img.naturalHeight && img.naturalWidth) {
-        const isPort = img.naturalHeight > img.naturalWidth;
-        setAspectMap((prev) => ({ ...prev, [currentPhoto.id]: isPort }));
-      }
-    };
-    img.src = currentPhoto.url;
+    detectPhotoMetadata(currentPhoto.url).then((meta) => {
+      if (!isMounted) return;
+      const detected = {
+        isPortrait: meta.isPortrait,
+        exifOrientation: meta.exifOrientation,
+      };
+      setMetadataMap((prev) => ({
+        ...prev,
+        [currentPhoto.id]: detected,
+      }));
+      onPhotoMetadataDetected?.(currentPhoto.id, detected);
+    });
+
     return () => {
       isMounted = false;
     };
-  }, [currentPhoto?.id, currentPhoto?.url, currentPhoto?.width, currentPhoto?.height]);
+  }, [currentPhoto?.id, currentPhoto?.url, currentPhoto?.isPortrait, currentPhoto?.exifOrientation, metadataMap, onPhotoMetadataDetected]);
 
-  // Compute rotation angle based on settings and manual override
+  // Si le tag EXIF 0x0112 ou le ratio indique le mode portrait, pivoter de 90 degrés
   const effectiveRotation = useMemo(() => {
     if (manualRotation !== undefined) {
       return manualRotation;
@@ -183,6 +223,9 @@ export function DigitalFrame({
     filter: `brightness(${settings.brightness}%)`,
   };
 
+  // En mode portrait, redimensionner automatiquement (mode contain) afin d'afficher l'intégralité de l'image sans rognage (anti-crop)
+  const effectiveFittingMode = (isPortrait || settings.fittingMode === 'contain') ? 'contain' : 'cover';
+
   // Dimensions of rotated photo container to span the landscape viewport
   const rotatedContainerStyle: React.CSSProperties = isRotatedQuarterTurn && viewportSize.width > 0 && viewportSize.height > 0
     ? {
@@ -209,8 +252,8 @@ export function DigitalFrame({
       className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center select-none"
       style={brightnessStyle}
     >
-      {/* Dynamic blurred ambient background for contain mode */}
-      {settings.fittingMode === 'contain' && settings.ambientBlurBackground && currentPhoto && (
+      {/* Dynamic blurred ambient background for contain mode or uncropped portrait */}
+      {effectiveFittingMode === 'contain' && settings.ambientBlurBackground && currentPhoto && (
         <div
           id="frame-ambient-backdrop"
           className="absolute inset-0 pointer-events-none overflow-hidden"
@@ -266,14 +309,27 @@ export function DigitalFrame({
                     onLoad={(e) => {
                       const img = e.currentTarget;
                       if (img.naturalHeight && img.naturalWidth) {
-                        const isPort = img.naturalHeight > img.naturalWidth;
-                        setAspectMap((prev) => (prev[currentPhoto.id] === isPort ? prev : { ...prev, [currentPhoto.id]: isPort }));
+                        const isPortByDim = img.naturalHeight > img.naturalWidth;
+                        const isPort = isExifPortrait(currentExifOrientation) || isPortByDim;
+                        if (!metadataMap[currentPhoto.id] || metadataMap[currentPhoto.id].isPortrait !== isPort) {
+                          setMetadataMap((prev) => ({
+                            ...prev,
+                            [currentPhoto.id]: {
+                              isPortrait: isPort,
+                              exifOrientation: currentExifOrientation,
+                            },
+                          }));
+                          onPhotoMetadataDetected?.(currentPhoto.id, {
+                            isPortrait: isPort,
+                            exifOrientation: currentExifOrientation,
+                          });
+                        }
                       }
                     }}
                     className={`w-full h-full select-none ${
-                      settings.fittingMode === 'cover'
-                        ? 'object-cover object-center'
-                        : 'object-contain object-center'
+                      effectiveFittingMode === 'contain'
+                        ? 'object-contain object-center'
+                        : 'object-cover object-center'
                     }`}
                   />
                 </div>
@@ -328,14 +384,6 @@ export function DigitalFrame({
                     title={`Format portrait d'origine réorienté à ${effectiveRotation}° en mode paysage`}
                   >
                     <RotateCw className="w-3 h-3" /> Auto-paysage ({effectiveRotation}°)
-                  </span>
-                )}
-                {isPortrait && effectiveRotation === 0 && (
-                  <span
-                    id="badge-portrait-mode-original"
-                    className="inline-flex items-center gap-1 text-[11px] bg-stone-800/80 text-stone-300 border border-stone-700 px-2 py-0.5 rounded-full font-mono font-normal"
-                  >
-                    Portrait original
                   </span>
                 )}
                 {!isPortrait && effectiveRotation !== 0 && (
